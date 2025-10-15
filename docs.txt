@@ -1,0 +1,161 @@
+API SPECIFICATION (foreign-education-be)
+
+Base
+- Base URL: /api
+- Auth: Bearer JWT in Authorization: Bearer <token>
+- Content-Type: application/json
+- Common pagination: limit (1–200, default 50), offset (0+, default 0)
+- Standard error shape:
+{ "error": "Message", "code": "ERROR_CODE", "details": [] }
+
+Auth
+POST /api/auth/signin  (public)
+- Body:
+{ "email": "user@example.com", "password": "secret" }
+- 200:
+{ "token": "jwt-token-string", "user": { "id": "uuid", "email": "user@example.com", "role": "user" } }
+
+POST /api/auth/reset-password  (requires Authorization)
+- Body:
+{ "email": "user@example.com" }
+- 200:
+{ "success": true }
+
+GET /api/auth/verify-email/:token  (requires Authorization)
+- 200:
+{ "success": true }
+
+POST /api/auth/refresh-token  (requires Authorization)
+- Body:
+{ "refreshToken": "..." }
+- 200:
+{ "token": "new-access-token" }
+
+POST /api/auth/signout  (requires Authorization)
+- 200:
+{ "success": true }
+
+GET /api/auth/me  (requires Authorization)
+- 200: current user object
+
+PUT /api/auth/profile  (requires Authorization)
+- Body (any subset):
+{ "firstName": "", "lastName": "", "phone": "", "bio": "" }
+- 200: updated profile
+
+PUT /api/auth/change-password  (requires Authorization)
+- Body:
+{ "newPassword": "secret" }
+- 200:
+{ "success": true }
+
+Users (all require auth; admin where noted)
+GET /api/user/profile
+- 200:
+{ "id": "uuid", "email": "user@example.com", "firstName": "", "lastName": "", "phone": "", "bio": "", "avatar": "", "role": "user" }
+
+PUT /api/user/profile
+- Body (any subset):
+{ "firstName": "", "lastName": "", "phone": "", "bio": "", "avatar": "" }
+- 200: updated profile (same shape as GET)
+
+GET /api/user/all  (admin)
+- 200:
+[ { "id": "uuid", "email": "x@x.com", "role": "user", "firstName": "", "lastName": "" } ]
+
+GET /api/user/stats  (admin)
+- 200:
+{ "totalUsers": 0, "byRole": { "admin": 1, "moderator": 2, "user": 10 } }
+
+GET /api/user/:userId  (admin)
+- 200: user object
+
+PUT /api/user/:userId/role  (admin)
+- Body:
+{ "role": "user|moderator|admin" }
+- 200: updated user
+
+DELETE /api/user/:userId  (admin)
+- 200:
+{ "success": true }
+
+POST /api/user/admin/create  (admin)
+- Body:
+{ "email": "x@x.com", "password": "secret", "role": "user", "firstName": "", "lastName": "" }
+- 201: created user object
+
+Students (all require auth)
+GET /api/students
+- Query:
+  - Pagination: limit, offset
+  - Sorting: sort_by in id|created_at|name|email|intake_year, sort_dir in asc|desc
+  - Filters (optional): name, email, phone, category, zone, source_of_student
+  - Date ranges: intake_year_from, intake_year_to, created_from, created_to (ISO8601)
+  - Search: q (matches name/email/phone)
+- 200:
+{ "success": true, "items": [ { "id": 1, "name": "", "email": "", "phone": "", "category": "", "zone": "", "source_of_student": "", "intake_year": "2025-01-01", "created_at": "2025-01-01T00:00:00Z" } ], "total": 0, "limit": 50, "offset": 0 }
+
+GET /api/students/:id
+- 200:
+{ "success": true, "student": { "...": "..." } }
+
+POST /api/students
+- Body (minimally name; others optional):
+{ "name": "John", "email": "john@x.com", "phone": "123", "intake_year": "2025-01-01", "password": "optional", "category": "", "zone": "", "source_of_student": "", "associate_wise_installments": "" }
+- 201:
+{ "success": true, "student": { "...created..." } }
+
+PUT /api/students/:id
+- Body: any updatable fields (same keys as POST, all optional)
+- 200:
+{ "success": true, "student": { "...updated..." } }
+
+DELETE /api/students/:id
+- 200:
+{ "success": true, "message": "Student deleted" }
+
+Payments (all require auth)
+GET /api/payments
+- Query:
+  - Pagination: limit, offset
+  - Sorting: sort_by in id|created_at|installment_date|amount|student_id, sort_dir in asc|desc
+  - Filters (optional):
+    - student_id (int)
+    - payment_type (text)
+    - payment_recieved_in (text)
+    - Date ranges: created_from, created_to, installment_from, installment_to (ISO8601)
+    - Amount ranges: min_amount, max_amount
+- 200:
+{ "success": true, "items": [ { "id": 1, "created_at": "2025-10-13T00:00:00Z", "student_id": 123, "installment_date": "2025-10-13", "amount": 500.75, "payment_recieved_in": "bank", "payment_type": "cash", "remarks": "First", "purpose": "Tuition", "ak_approval": "pending", "ak_remarks": "N/A" } ], "total": 0, "limit": 50, "offset": 0 }
+
+POST /api/payments
+- Body:
+{
+  "student_id": 123,
+  "installment_date": "2025-10-13",
+  "amount": 500.75,
+  "payment_recieved_in": "bank",
+  "payment_type": "cash",
+  "remarks": "First installment",
+  "purpose": "Tuition",
+  "ak_approval": "pending",
+  "ak_remarks": "N/A"
+}
+- 201:
+{ "success": true, "payment": { "...created..." } }
+
+Quick cURL examples
+- Login:
+curl -X POST "$BASE/api/auth/signin" -H "Content-Type: application/json" -d '{"email":"admin@x.com","password":"secret"}'
+
+- List students:
+curl "$BASE/api/students?limit=20&offset=0&q=john" -H "Authorization: Bearer $TOKEN"
+
+- Create student:
+curl -X POST "$BASE/api/students" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"name":"John Doe","email":"john@x.com"}'
+
+- List payments for a student in 2025:
+curl "$BASE/api/payments?student_id=123&created_from=2025-01-01&created_to=2025-12-31" -H "Authorization: Bearer $TOKEN"
+
+- Create payment:
+curl -X POST "$BASE/api/payments" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"student_id":123,"amount":500.75,"installment_date":"2025-10-13"}'
