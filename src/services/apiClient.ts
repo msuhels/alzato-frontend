@@ -1,36 +1,5 @@
-import axios from 'axios';
-
-// Use relative '/api' in dev to leverage Vite proxy and avoid CORS.
-// Prefer env override when provided for staging/prod.
-const BASE_URL = (import.meta as any)?.env?.VITE_BACKEND_URL || '/api';
-
-export const apiClient = axios.create({
-  baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
-});
-
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth-token');
-  const url = config.url || '';
-  const isSignin = url.includes('/auth/signin');
-  if (token && !isSignin) {
-    config.headers = config.headers || {};
-    (config.headers as any).Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Optional: handle 401 to route to login without clearing token immediately
-apiClient.interceptors.response.use(
-  (res) => res,
-  (error) => {
-    if (error?.response?.status === 401) {
-      // Keep token for now; app can decide to redirect
-      // window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+// Deprecated: the axios client has been removed.
+// This file now only exposes shared API response types to avoid breaking imports.
 
 export type PaginatedResponse<T> = {
   success?: boolean;
@@ -39,7 +8,6 @@ export type PaginatedResponse<T> = {
   limit: number;
   offset: number;
 };
-
-export type ApiError = { error: string; code?: string; details?: any[] };
+ 
 
 

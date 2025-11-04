@@ -114,6 +114,12 @@ DELETE /api/students/:id
 - 200:
 { "success": true, "message": "Student deleted" }
 
+POST /api/students/bulk-delete
+- Body:
+{ "ids": [1, 2, 3] }
+- 200:
+{ "success": true, "deleted": 3 }
+
 Payments (all require auth)
 GET /api/payments
 - Query:
@@ -159,3 +165,162 @@ curl "$BASE/api/payments?student_id=123&created_from=2025-01-01&created_to=2025-
 
 - Create payment:
 curl -X POST "$BASE/api/payments" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"student_id":123,"amount":500.75,"installment_date":"2025-10-13"}'
+
+Dashboard (all require auth)
+GET /api/dashboard
+- Query (all optional):
+  - from, to: ISO8601 date-time range for payments.installment_date and students.created_at
+  - zone: filter students by zone and restrict payments to those students
+  - category: filter students by category and restrict payments to those students
+  - recent_payments_limit: 1–100 (default 10)
+- 200:
+{
+  "success": true,
+  "totals": {
+    "totalRevenue": 0,
+    "totalStudents": 0,
+    "revenueThisMonth": 0,
+    "newStudentsThisMonth": 0
+  },
+  "charts": {
+    "monthlyRevenue": [ { "month": "2025-05", "amount": 0 } ],
+    "studentsByZone": { "North": 10, "South": 5 },
+    "revenueByZone": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } }
+  },
+  "tables": {
+    "recentPayments": [ { "id": 1, "student_id": 123, "amount": 500.75, "date": "2025-10-13T00:00:00Z", "payment_type": "cash" } ]
+  }
+}
+
+Notes:
+- "monthlyRevenue" always returns last 12 months keyed as YYYY-MM of payment installment_date.
+- When filtering by zone/category, payments are limited to matching students.
+- "newStudentsThisMonth" counts students created in the current calendar month.
+
+Examples:
+- Basic: curl "$BASE/api/dashboard" -H "Authorization: Bearer $TOKEN"
+- Date range: curl "$BASE/api/dashboard?from=2025-01-01&to=2025-12-31" -H "Authorization: Bearer $TOKEN"
+- Zone filter: curl "$BASE/api/dashboard?zone=North&recent_payments_limit=5" -H "Authorization: Bearer $TOKEN"
+
+<<<<<<< HEAD
+GET /api/dashboard/revenue/monthly-series  (requires Authorization)
+- Query (optional):
+  - months: 1–24 (default 6)
+  - zone: filter students by zone and restrict payments to those students
+  - category: filter students by category and restrict payments to those students
+- 200:
+{
+  "success": true,
+  "months": 6,
+  "items": [
+    { "month": "2025-06", "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "totalStudents": 0 }
+  ]
+}
+
+
+GET /api/dashboard/net-revenue/total  (requires Authorization)
+- Query (optional):
+  - from, to: ISO8601 date-time range applied to payments.installment_date and students.created_at
+  - zone: filter students by zone and restrict payments to those students
+  - category: filter students by category and restrict payments to those students
+- 200:
+{
+  "success": true,
+  "totalRevenue": 0,
+  "totalPayout": 0,
+  "netRevenue": 0,
+  "totalStudents": 0,
+  "zoneWise": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } }
+}
+
+GET /api/dashboard/net-revenue/year/current  (requires Authorization)
+- Query (optional): zone, category
+- 200:
+{
+  "success": true,
+  "period": { "from": "2025-01-01T00:00:00.000Z", "to": "2026-01-01T00:00:00.000Z" },
+  "totalRevenue": 0,
+  "totalPayout": 0,
+  "netRevenue": 0,
+  "totalStudents": 0,             // students created this calendar year
+  "zoneWise": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } },
+  "lastPeriod": {
+    "totalRevenue": 0,            // last calendar year
+    "totalPayout": 0,
+    "netRevenue": 0,
+    "totalStudents": 0,
+    "zoneWise": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } }
+  }
+}
+
+GET /api/dashboard/net-revenue/month/current  (requires Authorization)
+- Query (optional): zone, category
+- 200:
+{
+  "success": true,
+  "period": { "from": "2025-10-01T00:00:00.000Z", "to": "2025-11-01T00:00:00.000Z" },
+  "totalRevenue": 0,
+  "totalPayout": 0,
+  "netRevenue": 0,
+  "totalStudents": 0,             // students created this calendar month
+  "zoneWise": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } },
+  "lastPeriod": {
+    "totalRevenue": 0,            // previous calendar month
+    "totalPayout": 0,
+    "netRevenue": 0,
+    "totalStudents": 0,
+    "zoneWise": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } }
+  }
+}
+
+POST /api/dashboard/revenue/monthly  (requires Authorization)
+- Body:
+{ "month": "YYYY-MM", "zone": "optional", "category": "optional" }
+- 200:
+{
+  "success": true,
+  "period": { "month": "2025-10", "from": "2025-10-01T00:00:00.000Z", "to": "2025-11-01T00:00:00.000Z" },
+  "totalRevenue": 0,
+  "totalPayout": 0,
+  "netRevenue": 0,
+  "totalStudents": 0,             // students created in that month
+  "zoneWise": { "North": { "totalRevenue": 0, "totalPayout": 0, "netRevenue": 0, "students": 0 } }
+}
+
+
+Import/Export (admin)
+POST /api/payments/import-csv  (admin)
+-- Writes to live tables: payments and students.
+- Body:
+{
+  "csv": "enrollment_number,student_name,intake_year,associate_wise_installments,zone,source_of_student,category,total_amount,Installment_number,installment_date,payment_type,amount,payment_recieved_in,payment_send_from,purpose,remarks,ak_approval,ak_remarks,installment_remarks,accounting_remarks\n..."
+}
+- Processing rules:
+  - Trims leading # from enrollment_number when matching students.
+  - Finds or creates student by enrollment_number.
+  - Updates student attributes if present: student_name->name, intake_year, associate_wise_installments, zone, source_of_student, category, total_amount.
+  - Before creating a payment, checks for duplicate by (student_id, payment_type, installment_number). If found, skips.
+
+  - Each inserted payment updates student rollups (recieved_amount/total_payout_amount/net_amount) in students.
+
+- Required columns (case-insensitive; supports Installment_number or installment_number):
+  - enrollment_number, amount, payment_type, installment_number, installment_date
+- Optional columns:
+  - student_name, intake_year, associate_wise_installments, zone, source_of_student, category, total_amount,
+
+  - payment_recieved_in, payment_send_from, purpose, remarks, ak_approval, ak_remarks, installment_remarks, accounting_remarks
+
+- 200:
+{ "inserted": 5, "failed": 1, "errors": [ { "rowNumber": 4, "message": "Invalid amount" } ] }
+
+GET /api/payments/export-csv  (admin)
+
+-- Reads from live payments table.
+- Query (optional): student_id, created_from, created_to
+- 200: CSV file download named "alzatoExport.csv" with headers:
+  id,student_id,installment_date,amount,installment_number,payment_recieved_in,payment_type,remarks,purpose,ak_approval,ak_remarks,installment_remarks,accounting_remarks,payment_send_from,created_at
+
+
+GET /api/payments/sample-csv  (admin)
+- Downloads the sample CSV stored in the repository under src/sample.
+- 200: attachment "alzato-sample-import-export.csv" containing the header and a few example rows.

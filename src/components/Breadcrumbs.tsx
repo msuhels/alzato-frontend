@@ -2,7 +2,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { studentsService } from '../services/students';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ArrowLeft } from 'lucide-react';
 // import { findStudentById } from '../lib/mockData';
 
 const Breadcrumbs = () => {
@@ -45,11 +45,13 @@ const Breadcrumbs = () => {
     if (name === 'new' && pathnames[index-1] === 'payments') {
         return 'Add Payment';
     }
-    if (name === 'payments' && pathnames[index + 1] && pathnames[index + 1] !== 'new') {
+    // Top-level payments list (not nested under students/:id)
+    if (name === 'payments' && pathnames[index - 2] !== 'students') {
       return 'Payments';
     }
-    if (pathnames[index - 1] === 'payments' && pathnames[index] !== 'new') {
-      return 'Payment';
+    // Edit payment breadcrumb
+    if (name === 'edit' && pathnames[index - 2] === 'payments') {
+      return 'Edit Payment';
     }
     return name.charAt(0).toUpperCase() + name.slice(1);
   };
@@ -63,7 +65,7 @@ const Breadcrumbs = () => {
           onClick={() => navigate(-1)}
           className="mr-2 md:mr-3 text-gray-custom-700 hover:text-primary"
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5" />
         </button>
       )}
       <ol className="inline-flex items-center space-x-1 md:space-x-3">
@@ -78,8 +80,13 @@ const Breadcrumbs = () => {
           const last = index === pathnames.length - 1;
           const to = `/${pathnames.slice(0, index + 1).join('/')}`;
           
-          // Don't show 'payments' segment in breadcrumb for add payment under a student
-          if (value === 'payments' && last && pathnames[index-2] === 'students') {
+          // Hide 'payments' segment when nested under a student (no route like /students/:id/payments)
+          if (value === 'payments' && pathnames[index - 2] === 'students') {
+            return null;
+          }
+
+          // Hide the paymentId segment (no details route exists)
+          if (pathnames[index - 1] === 'payments' && value !== 'new' && value !== 'edit') {
             return null;
           }
 

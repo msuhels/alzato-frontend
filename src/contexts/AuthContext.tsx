@@ -1,12 +1,11 @@
 import React, { createContext, useState, ReactNode, useEffect } from 'react';
 import { authService, UserProfile } from '../services/auth';
-import { apiClient } from '../services/apiClient';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   user: UserProfile | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserProfile>;
   logout: () => Promise<void>;
 }
 
@@ -41,21 +40,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     init();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<UserProfile> => {
     const res = await authService.login({ email, password });
     localStorage.setItem('auth-token', res.token);
-    apiClient.defaults.headers.common = apiClient.defaults.headers.common || {} as any;
-    (apiClient.defaults.headers.common as any).Authorization = `Bearer ${res.token}`;
     // Persist token renewal timestamp to manage session longevity
     localStorage.setItem('auth-token-updated-at', String(Date.now()));
     localStorage.setItem('auth-user', JSON.stringify(res.user));
     try {
       const profile = await authService.getProfile();
       setUser(profile);
+      setIsAuthenticated(true);
+      return profile;
     } catch {
-      setUser(res.user as any);
+      const fallbackUser = res.user as any as UserProfile;
+      setUser(fallbackUser);
+      setIsAuthenticated(true);
+      return fallbackUser;
     }
-    setIsAuthenticated(true);
   };
 
   const logout = async () => {
@@ -63,9 +64,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('auth-token');
     localStorage.removeItem('auth-token-updated-at');
     localStorage.removeItem('auth-user');
-    if (apiClient.defaults.headers.common) {
-      delete (apiClient.defaults.headers.common as any).Authorization;
-    }
     setIsAuthenticated(false);
     setUser(null);
   };

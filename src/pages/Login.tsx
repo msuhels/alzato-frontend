@@ -1,13 +1,15 @@
-import React, { FormEvent, useState } from 'react';
+import { FormEvent, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import AlzatLogo from '../components/AlzatLogo';
+// Use the WebP logo from public on the login page
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -17,8 +19,8 @@ const LoginPage = () => {
     const email = (form.elements.namedItem('email') as HTMLInputElement).value;
     const password = (form.elements.namedItem('password') as HTMLInputElement).value;
     try {
-      await login(email, password);
-      navigate('/students');
+      const loggedInUser = await login(email, password);
+      navigate(loggedInUser?.role === 'admin' ? '/dashboard' : '/students');
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Login failed');
     } finally {
@@ -29,8 +31,8 @@ const LoginPage = () => {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-custom-50">
       <div className="w-full max-w-md space-y-8 rounded-xl bg-white p-10 shadow-lg">
-        <div>
-          <AlzatLogo layout="vertical" size="lg" />
+        <div className="flex flex-col items-center">
+          <img src="/logo/alzato-logo.webp" alt="Alzato logo" className="h-16 w-48 object-contain" />
           <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-custom-900">
             Sign in to your account
           </h2>
@@ -48,21 +50,27 @@ const LoginPage = () => {
                 required
                 className="relative block w-full appearance-none rounded-t-md border border-gray-custom-300 px-3 py-2 text-gray-custom-900 placeholder-gray-custom-500 focus:z-10 focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
                 placeholder="admin@school.com (any email)"
-                defaultValue="admin@school.com"
               />
             </div>
-            <div>
+            <div className="relative">
               <label htmlFor="password" className="sr-only">Password</label>
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 required
-                className="relative block w-full appearance-none rounded-b-md border border-gray-custom-300 px-3 py-2 text-gray-custom-900 placeholder-gray-custom-500 focus:z-10 focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
-                placeholder="password (any password)"
-                defaultValue="password"
+                className="relative block w-full appearance-none rounded-b-md border border-gray-custom-300 px-3 py-2 pr-10 text-gray-custom-900 placeholder-gray-custom-500 focus:z-10 focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
+                placeholder="password"
               />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword(v => !v)}
+                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-custom-500 hover:text-primary"
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 

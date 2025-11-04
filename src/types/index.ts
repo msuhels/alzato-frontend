@@ -25,7 +25,7 @@ interface BasePayment {
 }
 
 export interface AccountingPayment extends BasePayment {
-  department: 'Application';
+  department: 'Installment';
   aksApproval: AkApprovalStatus;
   applicationRemarks?: string;
   aksRemarks?: string;
@@ -33,13 +33,13 @@ export interface AccountingPayment extends BasePayment {
 }
 
 export interface ExmPayment extends BasePayment {
-  department: 'CIMEA';
+  department: 'Other';
   purpose: string;
   remarks?: string;
 }
 
 export interface HrdPayment extends BasePayment {
-  department: 'Legal';
+  department: 'Other';
   purpose: string;
   remarks?: string;
 }

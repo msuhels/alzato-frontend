@@ -2,12 +2,35 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { STUDENT_CATEGORIES, ZONES, ASSOCIATE_WISE_INSTALLMENTS } from '../lib/constants';
 import { studentsService } from '../services/students';
+import { useState, useEffect } from 'react';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const AddStudentPage = () => {
   const navigate = useNavigate();
+  const [enrollmentNumber, setEnrollmentNumber] = useState<string>('');
+  const [loadingEnrollment, setLoadingEnrollment] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchEnrollmentNumber = async () => {
+      try {
+        const response = await studentsService.getNextEnrollmentNumber();
+        if (response.success) {
+          setEnrollmentNumber(response.enrollment_number);
+        }
+      } catch (error) {
+        console.error('Failed to fetch enrollment number:', error);
+      } finally {
+        setLoadingEnrollment(false);
+      }
+    };
+    fetchEnrollmentNumber();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return; // prevent double submit
+    setIsSubmitting(true);
     const form = e.target as HTMLFormElement;
     const name = (form.querySelector('#name') as HTMLInputElement).value;
     const phone = (form.querySelector('#phone') as HTMLInputElement).value;
@@ -16,16 +39,23 @@ const AddStudentPage = () => {
     const intakeYear = (form.querySelector('#intakeYear') as HTMLInputElement).value; // e.g., 2025
     const sourceOfStudent = (form.querySelector('#sourceOfStudent') as HTMLInputElement).value;
     const associateWiseInstallments = (form.querySelector('#associateWiseInstallments') as HTMLSelectElement).value;
-    await studentsService.create({ 
-      name, 
-      phone, 
-      zone, 
-      category, 
-      source_of_student: sourceOfStudent || undefined,
-      associate_wise_installments: associateWiseInstallments || undefined,
-      intake_year: intakeYear || undefined,
-    });
-    navigate('/students');
+    const totalAmountRaw = (form.querySelector('#totalAmount') as HTMLInputElement)?.value;
+    try {
+      await studentsService.create({ 
+        name, 
+        phone, 
+        zone, 
+        category, 
+        source_of_student: sourceOfStudent || undefined,
+        associate_wise_installments: associateWiseInstallments || undefined,
+        intake_year: intakeYear || undefined,
+        enrollment_number: enrollmentNumber,
+        total_amount: totalAmountRaw ? Number(totalAmountRaw) : undefined,
+      });
+      navigate('/students');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -56,6 +86,26 @@ const AddStudentPage = () => {
             <h2 className="text-lg font-semibold leading-7 text-gray-custom-900">Enrollment Details</h2>
             <p className="mt-1 text-sm leading-6 text-gray-custom-600">Specify the student's enrollment category and timeline.</p>
             <div className="mt-6 grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
+              <div className="sm:col-span-3">
+                <label htmlFor="enrollmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Enrollment Number</label>
+                <div className="mt-2">
+                  {loadingEnrollment ? (
+                    <div className="flex items-center gap-2">
+                      <LoadingSpinner size="sm" />
+                      <span className="text-sm text-gray-custom-500">Generating enrollment number...</span>
+                    </div>
+                  ) : (
+                    <input 
+                      type="text" 
+                      id="enrollmentNumber" 
+                      value={enrollmentNumber}
+                      placeholder="Auto-generated (0001, 0002, etc.)" 
+                      readOnly 
+                      className="block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 bg-gray-custom-50 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" 
+                    />
+                  )}
+                </div>
+              </div>
               <div className="sm:col-span-3">
                 <label htmlFor="zone" className="block text-sm font-medium leading-6 text-gray-custom-900">Zone</label>
                 <div className="mt-2">
@@ -95,6 +145,12 @@ const AddStudentPage = () => {
                   </select>
                 </div>
               </div>
+              <div className="sm:col-span-3">
+                <label htmlFor="totalAmount" className="block text-sm font-medium leading-6 text-gray-custom-900">Total Amount</label>
+                <div className="mt-2">
+                  <input type="number" id="totalAmount" inputMode="decimal" step="0.01" min="0" className="block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -103,8 +159,13 @@ const AddStudentPage = () => {
           <button type="button" onClick={() => navigate('/students')} className="text-sm font-semibold leading-6 text-gray-custom-900">
             Cancel
           </button>
-          <button type="submit" className="rounded-md bg-primary py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
-            Save Student
+          <button type="submit" disabled={isSubmitting} className={`rounded-md bg-primary py-2 px-4 text-sm font-semibold text-white shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${isSubmitting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-primary-dark'}`}>
+            {isSubmitting ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner size="sm" />
+                Saving...
+              </span>
+            ) : 'Save Student'}
           </button>
         </div>
       </form>

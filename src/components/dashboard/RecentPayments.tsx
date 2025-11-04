@@ -6,7 +6,7 @@ type StudentLike = { id: string | number; name: string };
 
 interface RecentPaymentsProps {
   payments: RecentPayment[];
-  studentMap: Map<string | number, StudentLike>;
+  studentMap: Map<string, StudentLike>;
 }
 
 const RecentPayments = ({ payments, studentMap }: RecentPaymentsProps) => {
@@ -23,7 +23,7 @@ const RecentPayments = ({ payments, studentMap }: RecentPaymentsProps) => {
         </thead>
         <tbody className="divide-y divide-gray-200">
           {payments.map(payment => {
-            const student = studentMap.get(payment.studentId);
+            const student = studentMap.get(String(payment.studentId));
             return (
               <tr key={payment.id}>
                 <td className="p-3">
