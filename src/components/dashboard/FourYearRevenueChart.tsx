@@ -14,7 +14,7 @@ const FourYearRevenueChart = ({ payments, payouts = [], onYearSelect }: FourYear
   const { years, data } = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear];
+    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
 
     const parseDateLocal = (input: string) => {
       const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})/.exec(input);

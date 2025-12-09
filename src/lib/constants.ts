@@ -29,7 +29,6 @@ export const ZONES = [
 export const PAYMENT_DEPARTMENTS = [
   'Installment',
   'Other',
-  'Payout',
 ] as const;
 
 export const ASSOCIATE_WISE_INSTALLMENTS = [
@@ -109,31 +108,7 @@ export const ASSOCIATE_WISE_INSTALLMENTS = [
 export const AK_APPROVAL_OPTIONS = ['Completed', 'No', 'Partial', 'Suspense'] as const;
 
 export const PAYMENT_PURPOSES = [
-  'TOLC-E',
-  'TOLC-I',
-  'TIL',
-  'CIMIEA',
-  'Enrol Fee',
-  'Appln Fee',
-  'PEC ID',
-  'InfoStud',
-  'SAT Score Card',
-  'HRD',
-  'DOV',
-  'Legalization',
-  'HRD to DOV',
-  'HRD + Apostile',
-  'Apostile',
-  'Translation',
-  'E-Stamp',
-  'Passport Dropping',
-  'Visa Date Booking',
-  'Courier Charge',
-  'Extra Page added in Apostile',
-  'Attestation',
-  'Apostile+Translation',
-  'Estamp + Translation',
-  'Attestation+Apostille',
+  'Enrolment fees',
 ];
 
 export const PAYMENT_RECEIVED_IN_OPTIONS = [

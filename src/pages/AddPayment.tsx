@@ -42,11 +42,8 @@ const AddPaymentPage = () => {
     const form = e.target as HTMLFormElement;
     const date = (form.querySelector('#date') as HTMLInputElement).value;
     const amountInput = form.querySelector('#amount') as HTMLInputElement | null;
-    const payoutAmountInput = form.querySelector('#payoutAmount') as HTMLInputElement | null;
     const amount = amountInput ? parseFloat(amountInput.value) : 0;
-    const payoutAmount = payoutAmountInput ? parseFloat(payoutAmountInput.value) : undefined;
     const receivedIn = (form.querySelector('#receivedIn') as HTMLSelectElement | null)?.value;
-    const sendFrom = (form.querySelector('#sendFrom') as HTMLSelectElement | null)?.value;
     const aksApprovalEl = (form.querySelector('#aksApproval') as HTMLSelectElement | null);
     const aksApproval = isAdmin ? (aksApprovalEl?.value) : 'No';
     const appRemarks = (form.querySelector('#appRemarks') as HTMLTextAreaElement | null)?.value;
@@ -60,41 +57,21 @@ const AddPaymentPage = () => {
     const installmentNumber = userInstallmentNumber ?? (paymentType ? getNextInstallmentNumber(existingPayments, paymentType) : undefined);
 
     try {
-      if (department === 'Payout') {
-        // Read fields specific to payout form as well
-        const purpose = (form.querySelector('#purpose') as HTMLSelectElement | null)?.value;
-        await paymentsService.create({
-          student_id: studentId as string,
-          installment_date: date,
-          // payout entries don't require installment number or amount
-          amount: payoutAmount || 0,
-          payment_recieved_in: receivedIn || undefined,
-          payment_send_from: sendFrom || undefined,
-          // also send alternate key used by some backends
-          ak_approval: aksApproval || undefined,
-          purpose: purpose || undefined,
-          installment_number: userInstallmentNumber,
-          remarks: remarks || undefined,
-          payment_type: 'Payout',
-        });
-      } else {
-        await paymentsService.create({
-          student_id: studentId as string,
-          installment_date: date,
-          installment_number: installmentNumber,
-          amount,
-          payment_recieved_in: receivedIn || undefined,
-          payment_send_from: sendFrom || undefined,
-          // also send alternate key used by some backends
-          ak_approval: aksApproval || undefined,
-          ak_remarks: aksRemarks || undefined,
-          installment_remarks: appRemarks || undefined,
-          accounting_remarks: accRemarks || undefined,
-          purpose: purpose || undefined,
-          remarks: remarks || undefined,
-          payment_type: paymentType,
-        });
-      }
+      await paymentsService.create({
+        student_id: studentId as string,
+        installment_date: date,
+        installment_number: installmentNumber,
+        amount,
+        payment_recieved_in: receivedIn || undefined,
+        // also send alternate key used by some backends
+        ak_approval: aksApproval || undefined,
+        ak_remarks: aksRemarks || undefined,
+        installment_remarks: appRemarks || undefined,
+        accounting_remarks: accRemarks || undefined,
+        purpose: purpose || undefined,
+        remarks: remarks || undefined,
+        payment_type: paymentType,
+      });
       navigate(`/students/${studentId}`);
     } finally {
       setIsSubmitting(false);
@@ -111,8 +88,6 @@ const AddPaymentPage = () => {
         return <AccountingForm isAdmin={isAdmin} />;
       case 'Other':
         return <OtherForm isAdmin={isAdmin} />;
-      case 'Payout':
-        return <PayoutForm isAdmin={isAdmin} />;
       default:
         return null;
     }
@@ -130,7 +105,7 @@ const AddPaymentPage = () => {
         {department ? `New ${department} Payment` : 'Add New Payment'}
       </h1>
       <p className="text-gray-custom-600 mb-2">For <span className="font-semibold text-gray-custom-800">{studentName || 'Student'}</span></p>
-      {department && department !== 'Payout' && (
+      {department && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
             <span className="font-semibold">Next Installment:</span> This will be installment #{getNextInstallmentNumber(existingPayments, department)} for {department} payments
@@ -161,7 +136,6 @@ const DepartmentSelector = ({ onSelect }: { onSelect: (dept: typeof PAYMENT_DEPA
     const departmentOptions = [
         { name: 'Installment', icon: Building, description: "Record installment payments and manage approvals." },
         { name: 'Other', icon: FileText, description: "Handle other fees and miscellaneous payments." },
-        { name: 'Payout', icon: FileText, description: "Record payout given to student or associate." },
     ];
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -206,13 +180,6 @@ const AccountingForm = ({ isAdmin }: { isAdmin: boolean }) => (
         <div className="sm:col-span-3">
             <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
             <select id="receivedIn" defaultValue="" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="sendFrom" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Send From</label>
-            <select id="sendFrom" defaultValue="" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
                 <option value="">Select</option>
                 {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
@@ -269,13 +236,6 @@ const SharedForm = ({ isAdmin }: { isAdmin: boolean }) => (
             </select>
         </div>
         <div className="sm:col-span-3">
-            <label htmlFor="sendFrom" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Send From</label>
-            <select id="sendFrom" defaultValue="" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
             <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
             <select id="aksApproval" required disabled={!isAdmin} defaultValue={'No'} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
                 {AK_APPROVAL_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
@@ -284,54 +244,6 @@ const SharedForm = ({ isAdmin }: { isAdmin: boolean }) => (
         <div className="sm:col-span-6">
             <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
             <textarea id="remarks" rows={4} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-        </div>
-    </div>
-);
-
-const PayoutForm = ({ isAdmin }: { isAdmin: boolean }) => (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-        <div className="sm:col-span-3">
-            <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
-            <input type="date" id="date" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="payoutAmount" className="block text-sm font-medium leading-6 text-gray-custom-900">Payout Amount</label>
-            <input type="number" id="payoutAmount" step="0.01" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
-            <select id="purpose" defaultValue="" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_PURPOSES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
-            <input type="number" id="installmentNumber" min={1} placeholder="e.g. 1" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
-            <select id="receivedIn" defaultValue="" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="sendFrom" className="block text sm font-medium leading-6 text-gray-custom-900">Payment Send From</label>
-            <select id="sendFrom" defaultValue="" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
-            <select id="aksApproval" required disabled={!isAdmin} defaultValue={'No'} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
-                {AK_APPROVAL_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-6">
-            <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
-            <textarea id="remarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
         </div>
     </div>
 );

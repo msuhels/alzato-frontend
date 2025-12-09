@@ -119,7 +119,6 @@ const EditPaymentPage = () => {
           const date = (form.querySelector('#date') as HTMLInputElement).value;
           const amount = parseFloat((form.querySelector('#amount') as HTMLInputElement).value);
           const receivedIn = (form.querySelector('#receivedIn') as HTMLSelectElement | null)?.value;
-          const sendFrom = (form.querySelector('#sendFrom') as HTMLSelectElement | null)?.value;
           const aksApproval = isAdmin ? ((form.querySelector('#aksApproval') as HTMLSelectElement | null)?.value) : 'No';
           const remarks = (form.querySelector('#remarks') as HTMLTextAreaElement | null)?.value;
           const akRemarks = (form.querySelector('#akRemarks') as HTMLTextAreaElement | null)?.value;
@@ -135,9 +134,6 @@ const EditPaymentPage = () => {
               installment_date: date,
               amount,
               payment_recieved_in: receivedIn || undefined,
-              payment_send_from: sendFrom || undefined,
-              // send alternate snake_case variant for compatibility
-              payment_sent_from: sendFrom || undefined,
               ak_approval: aksApproval || undefined,
               remarks: remarks || undefined,
               purpose: purpose || undefined,
@@ -169,13 +165,6 @@ const EditPaymentPage = () => {
         <div className="sm:col-span-3">
           <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
           <select id="receivedIn" defaultValue={payment.payment_recieved_in || ''} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-            <option value="">Select</option>
-            {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </div>
-        <div className="sm:col-span-3">
-          <label htmlFor="sendFrom" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Send From</label>
-          <select id="sendFrom" defaultValue={(payment as any).payment_send_from || ''} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
             <option value="">Select</option>
             {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>

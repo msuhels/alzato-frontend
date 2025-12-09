@@ -10,7 +10,6 @@ export type PaymentListItem = {
   installment_number?: number;
   amount: number;
   payment_recieved_in?: string;
-  payment_send_from?: string;
   payment_type?: string;
   remarks?: string;
   purpose?: string;
@@ -27,7 +26,6 @@ export type PaymentCreateBody = {
   installment_number?: number;
   amount: number;
   payment_recieved_in?: string;
-  payment_send_from?: string;
   payment_type?: string;
   remarks?: string;
   purpose?: string;

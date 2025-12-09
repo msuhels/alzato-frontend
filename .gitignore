@@ -1,1 +1,5 @@
 node_modules/
+.env 
+.env copy
+dist/
+.DS_Store

@@ -46,7 +46,7 @@ const ApprovalStatusBadge = ({ status }: { status: AkApprovalStatus }) => {
   return <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[status]}`}>{status}</span>;
 }
 
-type PaymentTab = 'ALL' | 'Installment' | 'Other' | 'Payout';
+type PaymentTab = 'ALL' | 'Installment' | 'Other';
 
 const StudentDetailsPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -72,7 +72,6 @@ const StudentDetailsPage = () => {
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [receivedAmount, setReceivedAmount] = useState<number>(0);
   const [netAmount, setNetAmount] = useState<number>(0);
-  const [totalPayoutAmount, setTotalPayoutAmount] = useState<number>(0);
 
   const loadedRef = useRef(false);
   const fetchPaymentsForStudent = async () => {
@@ -86,7 +85,6 @@ const StudentDetailsPage = () => {
         setTotalAmount(Number(student?.total_amount || 0));
         const receivedRaw = (student?.recieved_amount ?? student?.received_amount ?? 0);
         setReceivedAmount(Number(receivedRaw));
-        setTotalPayoutAmount(Number(student?.total_payout_amount || 0));
         const netRaw = (student?.net_amount ?? 0);
         setNetAmount(Number(netRaw));
       } catch {}
@@ -114,7 +112,6 @@ const StudentDetailsPage = () => {
         setReceivedAmount(Number(receivedRaw));
         const netRaw = (student?.net_amount ?? 0);
         setNetAmount(Number(netRaw));
-        setTotalPayoutAmount(Number(student?.total_payout_amount || 0));
         setPayments(paymentsRes.items || []);
         const stateHighlight = (location as any)?.state?.highlightPaymentId;
         if (stateHighlight) {
@@ -146,10 +143,9 @@ const StudentDetailsPage = () => {
 
   const installmentPayments = useMemo(() => sortByInstallmentAsc(payments.filter(p => (p.payment_type || '').toLowerCase() === 'installment')), [payments]);
   const otherPayments = useMemo(() => sortByInstallmentAsc(payments.filter(p => (p.payment_type || '').toLowerCase() === 'other')), [payments]);
-  const payoutPayments = useMemo(() => payments.filter(p => (p.payment_type || '').toLowerCase() === 'payout'), [payments]);
 
   const groupedSortedAll = useMemo(() => {
-    const order: Record<string, number> = { installment: 0, other: 1, payout: 2 };
+    const order: Record<string, number> = { installment: 0, other: 1 };
     const clone = [...payments];
     return clone.sort((a, b) => {
       const ta = (a.payment_type || '').toLowerCase();
@@ -193,7 +189,6 @@ const StudentDetailsPage = () => {
   const tabs: { name: PaymentTab, label: string, count: number }[] = [
     { name: 'ALL', label: 'All Payments', count: payments.length },
     { name: 'Installment', label: `Installment`, count: installmentPayments.length },
-    { name: 'Payout', label: `Payout`, count: payoutPayments.length },
     { name: 'Other', label: `Other`, count: otherPayments.length },
   ];
 
@@ -227,10 +222,6 @@ const StudentDetailsPage = () => {
               <div className="rounded-lg border border-gray-custom-200 p-3">
                 <p className="text-xs text-gray-custom-500">Received Amount</p>
                 <p className="text-lg font-semibold text-gray-custom-900">{formatINR(receivedAmount)}</p>
-              </div>
-              <div className="rounded-lg border border-gray-custom-200 p-3">
-                <p className="text-xs text-gray-custom-500">Total Payout Amount</p>
-                <p className="text-lg font-semibold text-gray-custom-900">{formatINR(totalPayoutAmount)}</p>
               </div>
               <div className="rounded-lg border border-gray-custom-200 p-3">
                 <p className="text-xs text-gray-custom-500">Net Pending</p>
@@ -335,10 +326,6 @@ const StudentDetailsPage = () => {
                 {activeTab === 'ALL' && <AllPaymentsTable payments={groupedSortedAll} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} />}
                 {activeTab === 'Installment' && (installmentPayments.length > 0 ? <SharedPaymentsTable payments={installmentPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
                 {activeTab === 'Other' && (otherPayments.length > 0 ? <SharedPaymentsTable payments={otherPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
-                {activeTab === 'Payout' && (payoutPayments.length > 0 ? <SharedPaymentsTable payments={payoutPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
-                {activeTab === 'Installment' && (installmentPayments.length > 0 ? <SharedPaymentsTable payments={installmentPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
-                {activeTab === 'Other' && (otherPayments.length > 0 ? <SharedPaymentsTable payments={otherPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
-                {activeTab === 'Payout' && (payoutPayments.length > 0 ? <SharedPaymentsTable payments={payoutPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
               </>
             )}
           </div>
@@ -374,8 +361,6 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Send From</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Send From</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
@@ -394,8 +379,6 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                             <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
                             <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                             <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                            <td className="p-3 text-gray-custom-600">{p.payment_send_from || (p as any).payment_sent_from || '-'}</td>
-                            <td className="p-3 text-gray-custom-600">{p.payment_send_from || (p as any).payment_sent_from || '-'}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
                             <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
@@ -433,7 +416,6 @@ const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Send From</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
@@ -452,7 +434,6 @@ const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete
                                 <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
                                 <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                                 <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                                <td className="p-3 text-gray-custom-600">{p.payment_send_from || (p as any).payment_sent_from || '-'}</td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
                                 <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
@@ -479,8 +460,6 @@ const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete
 // Legacy aliases no longer used
 
 const OtherTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => <SharedPaymentsTable payments={payments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={onDelete} />;
-
-const PayoutTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => <SharedPaymentsTable payments={payments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={onDelete} />;
 
 export default StudentDetailsPage;
 

@@ -11,7 +11,7 @@ import { useAuth } from '../hooks/useAuth';
 import { PAYMENT_RECEIVED_IN_OPTIONS } from '../lib/constants';
 import TableSkeleton from '../components/TableSkeleton';
 
-type PaymentTab = 'ALL' | 'Installment' | 'Other' | 'Payout';
+type PaymentTab = 'ALL' | 'Installment' | 'Other';
 
 const studentMap = new Map<string | number, StudentListItem>();
 
@@ -137,13 +137,12 @@ const PaymentsPage = () => {
     if (dateTo) {
       result = result.filter(p => new Date(p.installment_date) <= new Date(dateTo));
     }
-    // Bank filter: match either Received In OR Send From (including legacy alias)
+    // Bank filter: match Received In
     if (bankFilter) {
       const target = bankFilter.toLowerCase();
       result = result.filter(p => {
         const received = (p.payment_recieved_in || '').toLowerCase();
-        const sendFrom = ((p as any).payment_send_from || (p as any).payment_sent_from || '').toLowerCase();
-        return received === target || sendFrom === target;
+        return received === target;
       });
     }
     return result;
@@ -192,13 +191,11 @@ const PaymentsPage = () => {
     const allFiltered = baseFilteredPayments;
     const installmentFiltered = allFiltered.filter(p => (p.payment_type || '').toLowerCase() === 'installment');
     const otherFiltered = allFiltered.filter(p => (p.payment_type || '').toLowerCase() === 'other');
-    const payoutFiltered = allFiltered.filter(p => (p.payment_type || '').toLowerCase() === 'payout');
     
     return {
       all: allFiltered.length,
       installment: installmentFiltered.length,
       other: otherFiltered.length,
-      payout: payoutFiltered.length,
     };
   }, [baseFilteredPayments]);
 
@@ -237,7 +234,6 @@ const PaymentsPage = () => {
   const tabs: { name: PaymentTab, label: string, count: number }[] = [
     { name: 'ALL', label: 'All Payments', count: filteredCounts.all },
     { name: 'Installment', label: 'Installment', count: filteredCounts.installment },
-    { name: 'Payout', label: 'Payout', count: filteredCounts.payout },
     { name: 'Other', label: 'Other', count: filteredCounts.other },
   ];
 
@@ -327,7 +323,7 @@ const PaymentsPage = () => {
         <div className="mt-6">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
           {loading ? (
-            <TableSkeleton rows={10} columns={isAdmin ? 13 : 12} />
+            <TableSkeleton rows={10} columns={isAdmin ? 12 : 11} />
           ) : filteredPayments.length === 0 ? (
             <div className="text-center text-gray-custom-500 py-8">No records found.</div>
           ) : (
@@ -482,7 +478,6 @@ const AllPaymentsTable = ({ payments, isAdmin, onDelete, onSort, getSortIcon }: 
                         
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Send From</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK Approval</th>
@@ -503,7 +498,6 @@ const AllPaymentsTable = ({ payments, isAdmin, onDelete, onSort, getSortIcon }: 
                             
                             <td className="p-3 text-gray-custom-600">{p.purpose || '-'}</td>
                             <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                            <td className="p-3 text-gray-custom-600">{p.payment_send_from || (p as any).payment_sent_from || '-'}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
                             <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
