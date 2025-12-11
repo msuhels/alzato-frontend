@@ -20,6 +20,7 @@ export type StudentListItem = {
   received_amount?: number;
   net_amount?: number;
   total_payout_amount?: number;
+  payments?: import('./payments').PaymentListItem[];
 };
 
 export type StudentCreateBody = {
@@ -41,11 +42,17 @@ export type StudentUpdateBody = Partial<StudentCreateBody>;
 export const studentsService = {
   async list(params: {
     limit?: number; offset?: number; sort_by?: string; sort_dir?: 'asc' | 'desc';
+    include_payments?: boolean;
+    column_filters?: Record<string, string[]>;
     name?: string; email?: string; phone?: string; category?: string; zone?: string; source_of_student?: string;
     intake_year_from?: string; intake_year_to?: string; created_from?: string; created_to?: string; q?: string;
   } = {}): Promise<PaginatedResponse<StudentListItem>> {
+    const { column_filters, ...rest } = params || {};
     const { data } = await axios.get<PaginatedResponse<StudentListItem>>(`${API_BASE_URL}/students`, {
-      params,
+      params: {
+        ...rest,
+        column_filters: column_filters ? JSON.stringify(column_filters) : undefined,
+      },
       headers: { ...getAuthHeaders() },
     });
     return data;

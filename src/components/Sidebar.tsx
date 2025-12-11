@@ -1,6 +1,6 @@
 // React import not needed for JSX with new TS/JSX transform
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, CreditCard, LogOut, User as UserIcon, X } from 'lucide-react';
+import { LayoutDashboard, Users, CreditCard, LogOut, User as UserIcon, X, Bell } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 // Replace branded text+icon with the provided SVG logo
 
@@ -15,7 +15,10 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const navItems = [
     ...(user?.role === 'admin' ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }] : []),
     { icon: Users, label: 'Students', path: '/students' },
-    { icon: CreditCard, label: 'Payments', path: '/payments' },
+    ...(user?.role === 'admin' ? [
+      { icon: CreditCard, label: 'Payments', path: '/payments' },
+      { icon: Bell, label: 'Updates', path: '/updates' },
+    ] : []),
   ];
   const content = (
     <div className="flex h-full w-64 flex-col border-r bg-white p-4">

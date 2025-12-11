@@ -13,6 +13,7 @@ import EditStudentPage from './pages/EditStudent';
 import StudentDetailsPage from './pages/StudentDetails';
 import AddPaymentPage from './pages/AddPayment';
 import EditPaymentPage from './pages/EditPayment.tsx';
+import UpdatesPage from './pages/Updates';
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
           <Route path="students/:studentId/payments/new" element={<AddPaymentPage />} />
           <Route path="students/:studentId/payments/:paymentId/edit" element={<EditPaymentPage />} />
           <Route path="payments" element={<PaymentsPage />} />
+          <Route path="updates" element={<UpdatesPage />} />
         </Route>
       </Route>
     </Routes>

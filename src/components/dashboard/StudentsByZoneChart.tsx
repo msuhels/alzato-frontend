@@ -16,6 +16,11 @@ const StudentsByZoneChart = ({ students }: StudentsByZoneChartProps) => {
 
   const data = processData();
 
+  const legendFormatter = (name: string) => {
+    const item = data.find(d => d.name === name);
+    return item ? `${name} (${item.value})` : name;
+  };
+
   const option = {
     tooltip: {
       trigger: 'item',
@@ -25,6 +30,7 @@ const StudentsByZoneChart = ({ students }: StudentsByZoneChartProps) => {
       orient: 'vertical',
       left: 'left',
       top: 'center',
+      formatter: legendFormatter,
       textStyle: {
         color: '#4B5563'
       }
@@ -33,22 +39,22 @@ const StudentsByZoneChart = ({ students }: StudentsByZoneChartProps) => {
       {
         name: 'Students by Zone',
         type: 'pie',
-        radius: ['50%', '70%'],
+        radius: ['45%', '65%'],
         center: ['70%', '50%'],
-        avoidLabelOverlap: false,
+        avoidLabelOverlap: true,
         label: {
           show: false,
-          position: 'center'
         },
         emphasis: {
           label: {
             show: true,
             fontSize: '20',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            formatter: '{b}: {c}',
           }
         },
         labelLine: {
-          show: false
+          show: false,
         },
         data: data,
         itemStyle: {
@@ -60,7 +66,7 @@ const StudentsByZoneChart = ({ students }: StudentsByZoneChartProps) => {
     color: ['#F97316', '#1E3A8A', '#6D28D9', '#10B981', '#EF4444']
   };
 
-  return <ReactECharts option={option} style={{ height: '300px' }} />;
+  return <ReactECharts option={option} style={{ height: '260px' }} />;
 };
 
 export default StudentsByZoneChart;

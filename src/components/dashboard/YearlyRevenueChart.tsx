@@ -90,6 +90,13 @@ const YearlyRevenueChart = ({ payments, payouts = [], onMonthSelect }: YearlyRev
         type: 'bar',
         barWidth: '45%',
         data: netData,
+        label: {
+          show: true,
+          position: 'top',
+          formatter: (p: any) => formatINR(p.value).replace(/\.00$/, ''),
+          color: '#4B5563',
+          fontWeight: 500,
+        },
         itemStyle: {
           borderRadius: [6, 6, 0, 0],
           color: {

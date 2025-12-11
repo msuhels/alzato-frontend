@@ -46,7 +46,7 @@ const ApprovalStatusBadge = ({ status }: { status: AkApprovalStatus }) => {
   return <span className={`px-2 py-1 text-xs font-medium rounded-full ${statusStyles[status]}`}>{status}</span>;
 }
 
-type PaymentTab = 'ALL' | 'Installment' | 'Other';
+// type PaymentTab = 'ALL' | 'Installment' | 'Other';
 
 const StudentDetailsPage = () => {
   const { studentId } = useParams<{ studentId: string }>();
@@ -54,7 +54,7 @@ const StudentDetailsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
-  const [activeTab, setActiveTab] = useState<PaymentTab>('ALL');
+  // const [activeTab, setActiveTab] = useState<PaymentTab>('ALL');
   const [studentName, setStudentName] = useState<string>('');
   const [category, setCategory] = useState<string>('');
   const [zone, setZone] = useState<string>('');
@@ -130,19 +130,19 @@ const StudentDetailsPage = () => {
     }
   }, [highlightedPaymentId, payments]);
 
-  const sortByInstallmentAsc = (list: PaymentListItem[]) => {
-    return [...list].sort((a, b) => {
-      const ai = a.installment_number ?? Number.MAX_SAFE_INTEGER;
-      const bi = b.installment_number ?? Number.MAX_SAFE_INTEGER;
-      if (ai !== bi) return ai - bi;
-      const ad = new Date(a.installment_date).getTime();
-      const bd = new Date(b.installment_date).getTime();
-      return ad - bd;
-    });
-  };
+  // const sortByInstallmentAsc = (list: PaymentListItem[]) => {
+  //   return [...list].sort((a, b) => {
+  //     const ai = a.installment_number ?? Number.MAX_SAFE_INTEGER;
+  //     const bi = b.installment_number ?? Number.MAX_SAFE_INTEGER;
+  //     if (ai !== bi) return ai - bi;
+  //     const ad = new Date(a.installment_date).getTime();
+  //     const bd = new Date(b.installment_date).getTime();
+  //     return ad - bd;
+  //   });
+  // };
 
-  const installmentPayments = useMemo(() => sortByInstallmentAsc(payments.filter(p => (p.payment_type || '').toLowerCase() === 'installment')), [payments]);
-  const otherPayments = useMemo(() => sortByInstallmentAsc(payments.filter(p => (p.payment_type || '').toLowerCase() === 'other')), [payments]);
+  // const installmentPayments = useMemo(() => sortByInstallmentAsc(payments.filter(p => (p.payment_type || '').toLowerCase() === 'installment')), [payments]);
+  // const otherPayments = useMemo(() => sortByInstallmentAsc(payments.filter(p => (p.payment_type || '').toLowerCase() === 'other')), [payments]);
 
   const groupedSortedAll = useMemo(() => {
     const order: Record<string, number> = { installment: 0, other: 1 };
@@ -186,11 +186,11 @@ const StudentDetailsPage = () => {
     return <div className="text-center">Student not found. <Link to="/students" className="text-primary">Go back</Link></div>;
   }
 
-  const tabs: { name: PaymentTab, label: string, count: number }[] = [
-    { name: 'ALL', label: 'All Payments', count: payments.length },
-    { name: 'Installment', label: `Installment`, count: installmentPayments.length },
-    { name: 'Other', label: `Other`, count: otherPayments.length },
-  ];
+  // const tabs: { name: PaymentTab, label: string, count: number }[] = [
+  //   { name: 'ALL', label: 'All Payments', count: payments.length },
+  //   { name: 'Installment', label: `Installment`, count: installmentPayments.length },
+  //   { name: 'Other', label: `Other`, count: otherPayments.length },
+  // ];
 
   return (
     <div className="space-y-8">
@@ -301,7 +301,8 @@ const StudentDetailsPage = () => {
         </div>
         
         <div>
-          <div className="border-b border-gray-200">
+          {/* Tabs hidden per request; showing all payments only */}
+          {/* <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
               {tabs.map((tab) => (
                 <button
@@ -317,15 +318,15 @@ const StudentDetailsPage = () => {
                 </button>
               ))}
             </nav>
-          </div>
+          </div> */}
           
           <div className="mt-6">
             {payments.length === 0 && <p className="text-center text-gray-500 py-8">No payment records found for this student.</p>}
             {payments.length > 0 && (
               <>
-                {activeTab === 'ALL' && <AllPaymentsTable payments={groupedSortedAll} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} />}
-                {activeTab === 'Installment' && (installmentPayments.length > 0 ? <SharedPaymentsTable payments={installmentPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
-                {activeTab === 'Other' && (otherPayments.length > 0 ? <SharedPaymentsTable payments={otherPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
+                <AllPaymentsTable payments={groupedSortedAll} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} />
+                {/* {activeTab === 'Installment' && (installmentPayments.length > 0 ? <SharedPaymentsTable payments={installmentPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
+                {activeTab === 'Other' && (otherPayments.length > 0 ? <SharedPaymentsTable payments={otherPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)} */}
               </>
             )}
           </div>
@@ -345,9 +346,9 @@ const StudentDetailsPage = () => {
   );
 };
 
-const NoPaymentsForTab = () => (
-    <p className="text-center text-gray-500 py-8">No payments in this category.</p>
-);
+// const NoPaymentsForTab = () => (
+//     <p className="text-center text-gray-500 py-8">No payments in this category.</p>
+// );
 
 const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => {
     return (
@@ -356,13 +357,14 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                 <thead className="bg-gray-custom-50">
                     <tr className="border-b border-gray-custom-200">
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Date</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th>
+                        {/* <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th> */}
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
+                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Accounting Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
                         {isAdmin && (
@@ -374,13 +376,14 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                     {payments.map(p => (
                         <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
                             <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
-                            <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td>
+                            {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}
                             <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
                             <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
                             <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                             <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
+                            <td className="p-3 text-center"><RemarksTooltip remarks={p.accounting_remarks} /></td>
                             <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
                             {isAdmin && (
@@ -403,7 +406,7 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
 
 // Removed specialized InstallmentTable; using SharedPaymentsTable for all non-ALL tabs for consistent columns
 
-const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => {
+export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => {
     return (
         <div>
             <div className="overflow-x-auto border rounded-lg">
@@ -411,13 +414,14 @@ const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete
                     <thead className="bg-gray-custom-50">
                         <tr className="border-b border-gray-custom-200">
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Date</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th>
+                            {/* <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th> */}
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
+                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Accounting Remarks</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
                             {isAdmin && (
@@ -429,13 +433,14 @@ const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete
                         {payments.map(p => (
                             <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
                                 <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
-                                <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td>
+                                {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'} </td> */}
                                 <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
                                 <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
                                 <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                                 <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
+                                <td className="p-3 text-center"><RemarksTooltip remarks={p.accounting_remarks} /></td>
                                 <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
                                 {isAdmin && (
@@ -459,7 +464,7 @@ const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete
 
 // Legacy aliases no longer used
 
-const OtherTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => <SharedPaymentsTable payments={payments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={onDelete} />;
+// const OtherTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => <SharedPaymentsTable payments={payments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={onDelete} />;
 
 export default StudentDetailsPage;
 

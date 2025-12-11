@@ -80,6 +80,13 @@ const FourYearRevenueChart = ({ payments, payouts = [], onYearSelect }: FourYear
       type: 'bar',
       barWidth: '45%',
       data,
+      label: {
+        show: true,
+        position: 'top',
+        formatter: (p: any) => formatINR(p.value).replace(/\.00$/, ''),
+        color: '#4B5563',
+        fontWeight: 500,
+      },
       itemStyle: {
         borderRadius: [6, 6, 0, 0],
         color: {

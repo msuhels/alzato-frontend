@@ -33,7 +33,8 @@ const AddPaymentPage = () => {
     }
     load();
   }, [studentId]);
-  const [department, setDepartment] = useState<typeof PAYMENT_DEPARTMENTS[number] | null>(null);
+  // Default to Installment to skip selection screen for now
+  const [department, setDepartment] = useState<typeof PAYMENT_DEPARTMENTS[number] | null>('Installment');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +48,7 @@ const AddPaymentPage = () => {
     const aksApprovalEl = (form.querySelector('#aksApproval') as HTMLSelectElement | null);
     const aksApproval = isAdmin ? (aksApprovalEl?.value) : 'No';
     const appRemarks = (form.querySelector('#appRemarks') as HTMLTextAreaElement | null)?.value;
-    const aksRemarks = (form.querySelector('#aksRemarks') as HTMLTextAreaElement | null)?.value;
+    const aksRemarks = isAdmin ? (form.querySelector('#aksRemarks') as HTMLTextAreaElement | null)?.value : undefined;
     const accRemarks = (form.querySelector('#accRemarks') as HTMLTextAreaElement | null)?.value;
     const purpose = (form.querySelector('#purpose') as HTMLSelectElement | null)?.value;
     const remarks = (form.querySelector('#remarks') as HTMLTextAreaElement | null)?.value;
@@ -64,8 +65,8 @@ const AddPaymentPage = () => {
         amount,
         payment_recieved_in: receivedIn || undefined,
         // also send alternate key used by some backends
-        ak_approval: aksApproval || undefined,
-        ak_remarks: aksRemarks || undefined,
+        ak_approval: isAdmin ? (aksApproval || "No") : 'No',
+        ak_remarks: isAdmin ? (aksRemarks || undefined) : undefined,
         installment_remarks: appRemarks || undefined,
         accounting_remarks: accRemarks || undefined,
         purpose: purpose || undefined,
@@ -191,13 +192,23 @@ const AccountingForm = ({ isAdmin }: { isAdmin: boolean }) => (
             </select>
         </div>
         <div className="sm:col-span-6">
+            <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
+            <textarea id="remarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+        </div>
+        <div className="sm:col-span-6">
             <label htmlFor="appRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remarks</label>
             <textarea id="appRemarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
         </div>
-        <div className="sm:col-span-6">
-            <label htmlFor="aksRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
-            <textarea id="aksRemarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-        </div>
+        {isAdmin && (
+            <div className="sm:col-span-6">
+                <label htmlFor="aksRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
+                <textarea
+                    id="aksRemarks"
+                    rows={3}
+                    className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"
+                ></textarea>
+            </div>
+        )}
         <div className="sm:col-span-6">
             <label htmlFor="accRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Accounting Remarks</label>
             <textarea id="accRemarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>

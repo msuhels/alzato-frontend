@@ -38,9 +38,11 @@ export const authService = {
     } as UserProfile;
   },
   async login(body: LoginBody): Promise<LoginResponse> {
+    console.log('Login request sent');
     const { data } = await axios.post<LoginResponse>(`${API_BASE_URL}/auth/signin`, body, {
       headers: { 'Content-Type': 'application/json' },
     });
+    console.log('Login response received', data);
     return data;
   },
 

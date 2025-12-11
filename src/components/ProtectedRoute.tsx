@@ -14,8 +14,9 @@ const ProtectedRoute = () => {
     return <Navigate to="/login" />;
   }
 
-  // Role guard for admin-only dashboard
-  if (location.pathname.startsWith('/dashboard') && user?.role !== 'admin') {
+  // Role guard for admin-only dashboard and payments
+  const isAdmin = user?.role === 'admin';
+  if ((location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/payments')) && !isAdmin) {
     return <Navigate to="/students" replace />;
   }
 

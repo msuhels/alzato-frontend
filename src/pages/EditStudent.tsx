@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { STUDENT_CATEGORIES, ZONES, ASSOCIATE_WISE_INSTALLMENTS } from '../lib/constants';
 import { studentsService } from '../services/students';
+import { activityLogService } from '../services/activityLog';
 
 type FormState = {
   name: string;
@@ -15,6 +16,7 @@ type FormState = {
 
 const EditStudentPage = () => {
   const navigate = useNavigate();
+  const location = useLocation() as { state?: { fromUpdates?: boolean; activityId?: number } };
   const { studentId } = useParams();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -64,7 +66,14 @@ const EditStudentPage = () => {
         source_of_student: form.source_of_student || undefined,
         associate_wise_installments: form.associate_wise_installments || undefined,
       });
-      navigate('/students');
+      if (location.state?.activityId) {
+        try { await activityLogService.markRead(location.state.activityId); } catch {}
+      }
+      if (location.state?.fromUpdates) {
+        navigate('/updates');
+      } else {
+        navigate('/students');
+      }
     } catch (e: any) {
       setError(e?.response?.data?.error || 'Failed to update student');
     } finally {

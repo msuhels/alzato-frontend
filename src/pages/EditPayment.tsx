@@ -3,11 +3,12 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { paymentsService, PaymentListItem } from '../services/payments';
 import { PAYMENT_PURPOSES, PAYMENT_RECEIVED_IN_OPTIONS, AK_APPROVAL_OPTIONS } from '../lib/constants';
 import { useAuth } from '../hooks/useAuth';
+import { activityLogService } from '../services/activityLog';
 
 const EditPaymentPage = () => {
   const navigate = useNavigate();
   const { studentId, paymentId } = useParams<{ studentId: string; paymentId: string }>();
-  const location = useLocation() as { state?: { payment?: PaymentListItem } };
+  const location = useLocation() as { state?: { payment?: PaymentListItem; fromUpdates?: boolean; activityId?: number } };
   const { user } = useAuth();
   const isAdmin = (user?.role === 'admin');
   const lastPaymentRaw = typeof window !== 'undefined' ? localStorage.getItem('last-payment') : null;
@@ -121,7 +122,7 @@ const EditPaymentPage = () => {
           const receivedIn = (form.querySelector('#receivedIn') as HTMLSelectElement | null)?.value;
           const aksApproval = isAdmin ? ((form.querySelector('#aksApproval') as HTMLSelectElement | null)?.value) : 'No';
           const remarks = (form.querySelector('#remarks') as HTMLTextAreaElement | null)?.value;
-          const akRemarks = (form.querySelector('#akRemarks') as HTMLTextAreaElement | null)?.value;
+          const akRemarks = isAdmin ? (form.querySelector('#akRemarks') as HTMLTextAreaElement | null)?.value : undefined;
           const accountingRemarks = (form.querySelector('#accountingRemarks') as HTMLTextAreaElement | null)?.value;
           const applicationRemark = (form.querySelector('#applicationRemark') as HTMLTextAreaElement | null)?.value;
           const purpose = (form.querySelector('#purpose') as HTMLSelectElement | null)?.value;
@@ -134,19 +135,27 @@ const EditPaymentPage = () => {
               installment_date: date,
               amount,
               payment_recieved_in: receivedIn || undefined,
-              ak_approval: aksApproval || undefined,
+              ak_approval: isAdmin ? (aksApproval || undefined) : undefined,
               remarks: remarks || undefined,
               purpose: purpose || undefined,
               installment_number: installmentNumber,
             };
             if (isInstallment) {
               // Send both snake_case variants to be compatible with differing backends
-              body.ak_remarks = akRemarks ?? undefined;
+              body.ak_remarks = isAdmin ? (akRemarks ?? undefined) : undefined;
               body.accounting_remarks = accountingRemarks ?? undefined;
               body.installment_remarks = applicationRemark ?? undefined;
             }
             await paymentsService.update(payment.id, body);
-            navigate(`/students/${studentId}`);
+            if (location.state?.activityId) {
+              try { await activityLogService.markRead(location.state.activityId); } catch {}
+            }
+            // Redirect back to Updates page if we came from there, otherwise go to student page
+            if (location.state?.fromUpdates) {
+              navigate('/updates');
+            } else {
+              navigate(`/students/${studentId}`);
+            }
           } finally {
             setSaving(false);
           }
@@ -200,7 +209,14 @@ const EditPaymentPage = () => {
           <>
             <div className="sm:col-span-6">
               <label htmlFor="akRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
-              <textarea id="akRemarks" defaultValue={payment.ak_remarks || ''} rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+              <textarea
+                id="akRemarks"
+                defaultValue={payment.ak_remarks || ''}
+                rows={3}
+                disabled={!isAdmin}
+                className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+                placeholder={!isAdmin ? "Only admins can edit AK's remarks" : undefined}
+              ></textarea>
             </div>
             <div className="sm:col-span-6">
               <label htmlFor="applicationRemark" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remark</label>
@@ -214,7 +230,14 @@ const EditPaymentPage = () => {
         )}
 
         <div className="sm:col-span-6 mt-4 flex items-center justify-end gap-x-4 border-t border-gray-900/10 pt-6">
-          <button type="button" onClick={() => navigate(`/students/${studentId}`)} className="text-sm font-semibold leading-6 text-gray-custom-900">
+          <button type="button" onClick={() => {
+            // Redirect back to Updates page if we came from there, otherwise go to student page
+            if (location.state?.fromUpdates) {
+              navigate('/updates');
+            } else {
+              navigate(`/students/${studentId}`);
+            }
+          }} className="text-sm font-semibold leading-6 text-gray-custom-900">
             Cancel
           </button>
           <button type="submit" disabled={saving} className="rounded-md bg-primary py-2 px-4 text-sm font-semibold text-white shadow-sm hover:bg-primary-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">

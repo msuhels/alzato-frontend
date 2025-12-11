@@ -4,7 +4,7 @@ import { IndianRupee } from 'lucide-react';
 import { formatINR } from '../lib/currency';
 import StatCard from '../components/dashboard/StatCard';
 // import RevenueChart from '../components/dashboard/RevenueChart';
-// import StudentsByZoneChart from '../components/dashboard/StudentsByZoneChart';
+import StudentsByZoneChart from '../components/dashboard/StudentsByZoneChart';
 import RevenueByZonePieChart from '../components/dashboard/RevenueByZonePieChart';
 import YearlyRevenueChart from '../components/dashboard/YearlyRevenueChart';
 import FourYearRevenueChart from '../components/dashboard/FourYearRevenueChart';
@@ -161,50 +161,63 @@ const DashboardPage = () => {
                 <p className="text-gray-custom-500 mt-1">Here's a snapshot of your institution's performance.</p>
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-1 gap-6 sm:[grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))]">
-                <StatCard 
-                    icon={IndianRupee}
-                    title="Total Net Revenue"
-                    value={formatINR(totalNetRevenue)}
-                    subText={`Total: ${formatINR(totalReceived)} • Students: ${totalStudents}`}
-                    change=""
-                    changeType="increase"
-                    showChange={false}
-                />
-                <StatCard 
-                    icon={IndianRupee}
-                    title="Yearly Net Revenue"
-                    value={formatINR(netRevenueThisYear)}
-                    change=""
-                    changeType="increase"
-                    showChange={false}
-                />
-                <StatCard 
-                    icon={CreditCard}
-                    title="Net Revenue This Month"
-                    value={formatINR(netRevenueThisMonth)}
-                    subText={`Total: ${formatINR(receivedAmountThisMonth)}`}
-                    change={netRevenueMoM.text}
-                    changeType={netRevenueMoM.type}
-                />
-                <StatCard 
-                    icon={UserPlus}
-                    title="New Students This Month"
-                    value={newStudentsCountThisMonth.toString()}
-                    change={newStudentsMoM.text}
-                    changeType={newStudentsMoM.type}
-                    size="sm"
-                />
-                <StatCard 
-                    icon={Users}
-                    title="Total Students"
-                    value={totalStudents.toString()}
-                    change=""
-                    changeType="increase"
-                    showChange={false}
-                    size="sm"
-                />
+            {/* Stat Cards + Students by Zone */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                <div className="lg:col-span-2 space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <StatCard 
+                            icon={IndianRupee}
+                            title="Total Net Revenue"
+                            value={formatINR(totalNetRevenue)}
+                            subText={`Total: ${formatINR(totalReceived)} • Students: ${totalStudents}`}
+                            change=""
+                            changeType="increase"
+                            showChange={false}
+                        />
+                        <StatCard 
+                            icon={CreditCard}
+                            title="Net Revenue This Month"
+                            value={formatINR(netRevenueThisMonth)}
+                            subText={`Total: ${formatINR(receivedAmountThisMonth)}`}
+                            change={netRevenueMoM.text}
+                            changeType={netRevenueMoM.type}
+                        />
+                        <StatCard 
+                            icon={UserPlus}
+                            title="New Students This Month"
+                            value={newStudentsCountThisMonth.toString()}
+                            change={newStudentsMoM.text}
+                            changeType={newStudentsMoM.type}
+                            size="sm"
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <StatCard 
+                            icon={IndianRupee}
+                            title="Yearly Net Revenue"
+                            value={formatINR(netRevenueThisYear)}
+                            change=""
+                            changeType="increase"
+                            showChange={false}
+                        />
+                        <StatCard 
+                            icon={Users}
+                            title="Total Students"
+                            value={totalStudents.toString()}
+                            change=""
+                            changeType="increase"
+                            showChange={false}
+                            size="sm"
+                        />
+                    </div>
+                </div>
+                <div className="rounded-xl bg-white/90 backdrop-blur p-6 shadow-sm ring-1 ring-gray-200 h-full flex flex-col">
+                    <h2 className="text-lg font-semibold text-gray-custom-900 mb-1">Students by Zone</h2>
+                    <p className="text-sm text-gray-custom-500 mb-3">Total students per zone</p>
+                    <div className="flex-1">
+                        <StudentsByZoneChart students={students} />
+                    </div>
+                </div>
             </div>
 
             {/* Charts */}

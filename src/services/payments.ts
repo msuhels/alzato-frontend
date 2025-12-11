@@ -49,7 +49,7 @@ export const paymentsService = {
     limit?: number; offset?: number; sort_by?: string; sort_dir?: 'asc' | 'desc';
     student_id?: number | string; payment_type?: string; payment_recieved_in?: string;
     created_from?: string; created_to?: string; installment_from?: string; installment_to?: string;
-    min_amount?: number; max_amount?: number;
+    min_amount?: number; max_amount?: number; column_filters?: string;
   } = {}): Promise<PaginatedResponse<PaymentListItem>> {
     const { data } = await axios.get<PaginatedResponse<PaymentListItem>>(`${API_BASE_URL}/payments`, {
       params,
