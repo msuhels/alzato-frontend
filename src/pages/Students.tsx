@@ -1,4 +1,4 @@
-import  { useState, useEffect, useMemo } from 'react';
+import  { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { studentsService, StudentListItem } from '../services/students';
@@ -55,6 +55,12 @@ const StudentsPage = () => {
   const [optionPool, setOptionPool] = useState<StudentListItem[]>([]);
   const [optionPayments, setOptionPayments] = useState<Record<string | number, PaymentListItem[]>>({});
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  const [akEdits, setAkEdits] = useState<Record<string | number, { ak_remarks?: string; ak_approval?: string }>>({});
+  const [savingPayments, setSavingPayments] = useState<Record<string | number, boolean>>({});
+  const tableRef = useRef<HTMLTableElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const barScrollRef = useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = useState(3600);
 
   const downloadBlob = (blob: Blob, fallbackName: string) => {
     const url = URL.createObjectURL(blob);
@@ -143,72 +149,12 @@ const StudentsPage = () => {
         });
       };
 
-      const getPaymentAtSlot = (student: StudentListItem, slotIndex: number) => {
-        const sorted = sortPayments(student.payments || []);
-        return sorted[slotIndex] as PaymentListItem | undefined;
-      };
-
-      // Client-side fallback sorting for payment columns (amt/date/recv/remarks/etc.)
-      const paymentSortMatch = sortBy?.match(/^(amt|date|recv|remarks|inst_remarks|acc_remarks|ak_remarks|ak_approval)_([1-4])$/);
-      const sortedItems = paymentSortMatch
-        ? [...(items || [])].sort((a, b) => {
-            const [, prefix, slotStr] = paymentSortMatch;
-            const slotIdx = Number(slotStr) - 1;
-            const pa = getPaymentAtSlot(a, slotIdx);
-            const pb = getPaymentAtSlot(b, slotIdx);
-
-            const safeStr = (v: any) => (v ?? '').toString().toLowerCase();
-
-            let av: any = null;
-            let bv: any = null;
-            switch (prefix) {
-              case 'amt':
-                av = Number(pa?.amount) || 0;
-                bv = Number(pb?.amount) || 0;
-                break;
-              case 'date':
-                av = new Date(pa?.installment_date || '').getTime() || 0;
-                bv = new Date(pb?.installment_date || '').getTime() || 0;
-                break;
-              case 'recv':
-                av = safeStr(pa?.payment_recieved_in);
-                bv = safeStr(pb?.payment_recieved_in);
-                break;
-              case 'remarks':
-                av = safeStr(pa?.remarks);
-                bv = safeStr(pb?.remarks);
-                break;
-              case 'inst_remarks':
-                av = safeStr(pa?.installment_remarks);
-                bv = safeStr(pb?.installment_remarks);
-                break;
-              case 'acc_remarks':
-                av = safeStr(pa?.accounting_remarks);
-                bv = safeStr(pb?.accounting_remarks);
-                break;
-              case 'ak_remarks':
-                av = safeStr(pa?.ak_remarks);
-                bv = safeStr(pb?.ak_remarks);
-                break;
-              case 'ak_approval':
-                av = safeStr(pa?.ak_approval);
-                bv = safeStr(pb?.ak_approval);
-                break;
-              default:
-                return 0;
-            }
-
-            if (av < bv) return sortDir === 'asc' ? -1 : 1;
-            if (av > bv) return sortDir === 'asc' ? 1 : -1;
-            return 0;
-          })
-        : items;
-
-      setAllStudents(sortedItems);
+      // Trust backend ordering; do not re-sort students on the frontend.
+      setAllStudents(items || []);
       setTotal(totalCount || 0);
       // payments are included per student
       const mapped: Record<string | number, PaymentListItem[]> = {};
-      sortedItems.forEach((s) => {
+      (items || []).forEach((s) => {
         if (Array.isArray(s.payments)) {
           mapped[s.id] = sortPayments(s.payments);
         }
@@ -330,6 +276,31 @@ const StudentsPage = () => {
   const skeletonColumns = baseColumns + paymentColumns;
   const paymentHeaderClass = "p-4 text-sm font-semibold text-gray-custom-500 text-center whitespace-nowrap min-w-[150px]";
   const paymentCellClass = "p-4 text-gray-custom-600 text-center whitespace-nowrap min-w-[150px]";
+  const nameStickyHeaderClass = showBulkUi
+    ? "sticky left-[52px] z-20 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.04)]"
+    : "sticky left-0 z-20 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.04)]";
+  const nameStickyCellClass = showBulkUi
+    ? "sticky left-[52px] z-5 bg-white"
+    : "sticky left-0 z-5 bg-white";
+
+  useEffect(() => {
+    const updateScrollWidth = () => {
+      setScrollWidth(tableRef.current?.scrollWidth || 3600);
+    };
+
+    updateScrollWidth();
+    window.addEventListener('resize', updateScrollWidth);
+    return () => window.removeEventListener('resize', updateScrollWidth);
+  }, [allStudents, columnFilters, sortBy, sortDir, paymentsByStudent, loading]);
+
+  const syncHorizontalScroll = (from: 'table' | 'bar') => {
+    const source = from === 'table' ? tableScrollRef.current : barScrollRef.current;
+    const target = from === 'table' ? barScrollRef.current : tableScrollRef.current;
+    if (!source || !target) return;
+    if (target.scrollLeft !== source.scrollLeft) {
+      target.scrollLeft = source.scrollLeft;
+    }
+  };
 
   const formatCurrency = (value?: number) =>
     (value ?? 0).toLocaleString('en-IN', { style: 'currency', currency: 'INR' });
@@ -343,6 +314,45 @@ const StudentsPage = () => {
   const getInstallmentData = (studentId: string | number, index: number) => {
     const list = paymentsByStudent[studentId] || [];
     return list[index];
+  };
+
+  const saveAkChanges = async (
+    payment: PaymentListItem,
+    patch: Partial<Pick<PaymentListItem, 'ak_remarks' | 'ak_approval'>>
+  ) => {
+    if (!payment?.id) return;
+    const paymentId = payment.id;
+    const studentKey = payment.student_id;
+    setSavingPayments(prev => ({ ...prev, [paymentId]: true }));
+    try {
+      await paymentsService.update(paymentId, patch);
+      setPaymentsByStudent(prev => {
+        const list = prev[studentKey] || [];
+        const nextList = list.map(p => (p.id === paymentId ? { ...p, ...patch } : p));
+        return { ...prev, [studentKey]: nextList };
+      });
+      setOptionPayments(prev => {
+        const list = prev[studentKey] || [];
+        const nextList = list.map(p => (p.id === paymentId ? { ...p, ...patch } : p));
+        return { ...prev, [studentKey]: nextList };
+      });
+    } catch (e: any) {
+      alert(e?.response?.data?.error || 'Failed to update payment');
+    } finally {
+      setSavingPayments(prev => {
+        const next = { ...prev };
+        delete next[paymentId];
+        return next;
+      });
+    }
+  };
+
+  const canEditAk = user?.role !== 'user';
+  const preventEnterSubmit = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   const handleNextPage = () => {
@@ -460,341 +470,411 @@ const StudentsPage = () => {
             className="w-full rounded-lg border bg-white py-2.5 pl-12 pr-4 focus:border-primary focus:outline-none"
           />
         </div>
-        
-        <div className="overflow-x-auto">
-          {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
-          {loading ? (
-            <TableSkeleton rows={10} columns={skeletonColumns} />
-          ) : (
-            <table className="w-full min-w-[3600px] text-left">
-              <thead>
-                <tr className="border-b border-gray-custom-200">
-                  {showBulkUi && (
-                    <th className="p-4">
-                      <input
-                        type="checkbox"
-                        checked={allStudents.length > 0 && allStudents.every(s => selectedIds.has(s.id))}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          const next = new Set(selectedIds);
-                          const allOnPageIds = allStudents.map(s => s.id);
-                          const allSelected = allOnPageIds.every(id => next.has(id));
-                          if (allSelected) {
-                            allOnPageIds.forEach(id => next.delete(id));
-                          } else {
-                            allOnPageIds.forEach(id => next.add(id));
-                          }
-                          setSelectedIds(next);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </th>
-                  )}
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="Enrl. NO."
-                      options={columnOptions.enrollment_number}
-                      selectedValues={columnFilters.enrollment_number || []}
-                      onApply={(values) => handleColumnFilterChange('enrollment_number', values)}
-                      onSort={(dir) => handleSort('enrollment_number', dir)}
-                      sortDir={sortBy === 'enrollment_number' ? sortDir : null}
-                      enableOptions={false}
-                    />
-                  </th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="STUDENT NAME"
-                      options={columnOptions.name}
-                      selectedValues={columnFilters.name || []}
-                      onApply={(values) => handleColumnFilterChange('name', values)}
-                      onSort={(dir) => handleSort('name', dir)}
-                      sortDir={sortBy === 'name' ? sortDir : null}
-                      enableOptions={false}
-                    />
-                  </th>
-                  
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="ZONE"
-                      options={columnOptions.zone}
-                      selectedValues={columnFilters.zone || []}
-                      onApply={(values) => handleColumnFilterChange('zone', values)}
-                      onSort={(dir) => handleSort('zone', dir)}
-                      sortDir={sortBy === 'zone' ? sortDir : null}
-                      enableOptions={true}
-                    />
-                  </th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="ASSOCIATE WISE"
-                      options={columnOptions.associate_wise_installments}
-                      selectedValues={columnFilters.associate_wise_installments || []}
-                      onApply={(values) => handleColumnFilterChange('associate_wise_installments', values)}
-                      onSort={(dir) => handleSort('associate_wise_installments', dir)}
-                      sortDir={sortBy === 'associate_wise_installments' ? sortDir : null}
-                      enableOptions={true}
-                    />
-                  </th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="TOTAL"
-                      options={columnOptions.total_amount}
-                      selectedValues={columnFilters.total_amount || []}
-                      onApply={(values) => handleColumnFilterChange('total_amount', values)}
-                      onSort={(dir) => handleSort('total_amount', dir)}
-                      sortDir={sortBy === 'total_amount' ? sortDir : null}
-                    enableOptions={false}
-                    rangeType="number"
-                    />
-                  </th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="RECEIVED"
-                      options={columnOptions.recieved_amount}
-                      selectedValues={columnFilters.recieved_amount || []}
-                      onApply={(values) => handleColumnFilterChange('recieved_amount', values)}
-                      onSort={(dir) => handleSort('recieved_amount', dir)}
-                      sortDir={sortBy === 'recieved_amount' ? sortDir : null}
-                      enableOptions={false}
-                      rangeType="number"
-                    />
-                  </th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
-                    <ColumnFilterMenu
-                      label="NET PENDING"
-                      options={columnOptions.net_amount}
-                      selectedValues={columnFilters.net_amount || []}
-                      onApply={(values) => handleColumnFilterChange('net_amount', values)}
-                      onSort={(dir) => handleSort('net_amount', dir)}
-                      sortDir={sortBy === 'net_amount' ? sortDir : null}
-                      enableOptions={false}
-                      rangeType="number"
-                    />
-                  </th>
-                  {[1,2,3,4].flatMap((n) => ([
-                    <th key={`amount-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`Amount ${n}`}
-                        options={columnOptions[`amt_${n}`] || []}
-                        selectedValues={columnFilters[`amt_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`amt_${n}`, values)}
-                        onSort={(dir) => handleSort(`amt_${n}`, dir)}
-                        sortDir={sortBy === `amt_${n}` ? sortDir : null}
-                        enableOptions={false}
-                        rangeType="number"
-                      />
-                    </th>,
-                    <th key={`date-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`Installment Date ${n}`}
-                        options={columnOptions[`date_${n}`] || []}
-                        selectedValues={columnFilters[`date_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`date_${n}`, values)}
-                        onSort={(dir) => handleSort(`date_${n}`, dir)}
-                        sortDir={sortBy === `date_${n}` ? sortDir : null}
-                        enableOptions={false}
-                        isDate
-                        rangeType="date"
-                      />
-                    </th>,
-                    <th key={`recv-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`Received In ${n}`}
-                        options={columnOptions[`recv_${n}`] || []}
-                        selectedValues={columnFilters[`recv_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`recv_${n}`, values)}
-                        onSort={(dir) => handleSort(`recv_${n}`, dir)}
-                        sortDir={sortBy === `recv_${n}` ? sortDir : null}
-                        enableOptions={true}
-                      />
-                    </th>,
-                    <th key={`remarks-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`Remarks ${n}`}
-                        options={columnOptions[`remarks_${n}`] || []}
-                        selectedValues={columnFilters[`remarks_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`remarks_${n}`, values)}
-                        onSort={(dir) => handleSort(`remarks_${n}`, dir)}
-                        sortDir={sortBy === `remarks_${n}` ? sortDir : null}
-                        enableOptions={false}
-                      />
-                    </th>,
-                    <th key={`inst-remarks-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`Installment Remarks ${n}`}
-                        options={columnOptions[`inst_remarks_${n}`] || []}
-                        selectedValues={columnFilters[`inst_remarks_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`inst_remarks_${n}`, values)}
-                        onSort={(dir) => handleSort(`inst_remarks_${n}`, dir)}
-                        sortDir={sortBy === `inst_remarks_${n}` ? sortDir : null}
-                        enableOptions={false}
-                      />
-                    </th>,
-                    <th key={`acc-remarks-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`Accounting Remarks ${n}`}
-                        options={columnOptions[`acc_remarks_${n}`] || []}
-                        selectedValues={columnFilters[`acc_remarks_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`acc_remarks_${n}`, values)}
-                        onSort={(dir) => handleSort(`acc_remarks_${n}`, dir)}
-                        sortDir={sortBy === `acc_remarks_${n}` ? sortDir : null}
-                        enableOptions={false}
-                      />
-                    </th>,
-                    <th key={`ak-remarks-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`AK Remarks ${n}`}
-                        options={columnOptions[`ak_remarks_${n}`] || []}
-                        selectedValues={columnFilters[`ak_remarks_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`ak_remarks_${n}`, values)}
-                        onSort={(dir) => handleSort(`ak_remarks_${n}`, dir)}
-                        sortDir={sortBy === `ak_remarks_${n}` ? sortDir : null}
-                        enableOptions={false}
-                      />
-                    </th>,
-                    <th key={`ak-approval-${n}`} className={paymentHeaderClass}>
-                      <ColumnFilterMenu
-                        label={`AK Approval ${n}`}
-                        options={columnOptions[`ak_approval_${n}`] || []}
-                        selectedValues={columnFilters[`ak_approval_${n}`] || []}
-                        onApply={(values) => handleColumnFilterChange(`ak_approval_${n}`, values)}
-                        onSort={(dir) => handleSort(`ak_approval_${n}`, dir)}
-                        sortDir={sortBy === `ak_approval_${n}` ? sortDir : null}
-                        enableOptions={true}
-                      />
-                    </th>,
-                  ]))}
-                  {user?.role !== 'user' && (
-                    <th className="p-4 text-sm font-semibold text-gray-custom-500 text-center whitespace-nowrap min-w-[140px]">
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                  {allStudents.length === 0 ? (
-                    <tr>
-                      {showBulkUi && <td className="p-4" />}
-                      <td className="p-4 text-center text-gray-custom-500" colSpan={skeletonColumns - (showBulkUi ? 1 : 0)}>
-                        No records found. Clear or adjust filters to see results.
-                      </td>
-                    </tr>
-                  ) : allStudents.map((student) => (
-                  <tr 
-                    key={student.id}
-                    className="border-b border-gray-custom-200 last:border-b-0 hover:bg-gray-custom-50 cursor-pointer"
-                    onClick={() => navigate(`/students/${student.id}`)}
-                  >
+        {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
+        <div className="relative pb-24">
+          <div
+            className="overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            ref={tableScrollRef}
+            onScroll={() => syncHorizontalScroll('table')}
+          >
+            {loading ? (
+              <div className="min-w-[3600px]">
+                <TableSkeleton rows={10} columns={skeletonColumns} />
+              </div>
+            ) : (
+              <table ref={tableRef} className="w-full min-w-[3600px] text-left">
+                <thead>
+                  <tr className="border-b border-gray-custom-200">
                     {showBulkUi && (
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      <th className="p-4">
                         <input
                           type="checkbox"
-                          checked={selectedIds.has(student.id)}
+                          checked={allStudents.length > 0 && allStudents.every(s => selectedIds.has(s.id))}
                           onChange={(e) => {
+                            e.stopPropagation();
                             const next = new Set(selectedIds);
-                            if (e.target.checked) {
-                              next.add(student.id);
+                            const allOnPageIds = allStudents.map(s => s.id);
+                            const allSelected = allOnPageIds.every(id => next.has(id));
+                            if (allSelected) {
+                              allOnPageIds.forEach(id => next.delete(id));
                             } else {
-                              next.delete(student.id);
+                              allOnPageIds.forEach(id => next.add(id));
                             }
                             setSelectedIds(next);
                           }}
                           onClick={(e) => e.stopPropagation()}
                         />
-                      </td>
+                      </th>
                     )}
-                    <td className="p-4 text-gray-custom-600 font-mono">{student.enrollment_number || '-'}</td>
-                    <td className="p-4 min-w-[220px] whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <Avatar name={student.name} />
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-custom-800 truncate">{student.name}</p>
-                          <p className="text-sm text-gray-custom-500 truncate">{student.email}</p>
-                        </div>
-                      </div>
-                    </td>
+                    <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
+                      <ColumnFilterMenu
+                        label="Enrl. NO."
+                        options={columnOptions.enrollment_number}
+                        selectedValues={columnFilters.enrollment_number || []}
+                        onApply={(values) => handleColumnFilterChange('enrollment_number', values)}
+                        onSort={(dir) => handleSort('enrollment_number', dir)}
+                        sortDir={sortBy === 'enrollment_number' ? sortDir : null}
+                        enableOptions={false}
+                      />
+                    </th>
+                    <th className={`p-4 text-sm font-semibold text-gray-custom-500 select-none ${nameStickyHeaderClass}`}>
+                      <ColumnFilterMenu
+                        label="STUDENT NAME"
+                        options={columnOptions.name}
+                        selectedValues={columnFilters.name || []}
+                        onApply={(values) => handleColumnFilterChange('name', values)}
+                        onSort={(dir) => handleSort('name', dir)}
+                        sortDir={sortBy === 'name' ? sortDir : null}
+                        enableOptions={false}
+                      />
+                    </th>
                     
-                    <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{student.zone || '-'}</td>
-                    <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{student.associate_wise_installments || '-'}</td>
-                    <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.total_amount)}</td>
-                    <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.recieved_amount ?? student.received_amount)}</td>
-                    <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.net_amount)}</td>
-                    {[0,1,2,3].flatMap((idx) => {
-                      const inst = getInstallmentData(student.id, idx);
-                      return ([
-                        <td key={`amt-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst ? formatCurrency(inst.amount) : '-'}
-                        </td>,
-                        <td key={`date-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst ? formatDateDisplay(inst.installment_date) : '-'}
-                        </td>,
-                        <td key={`recv-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst?.payment_recieved_in || '-'}
-                        </td>,
-                        <td key={`remarks-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst?.remarks || '-'}
-                        </td>,
-                        <td key={`inst-remarks-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst?.installment_remarks || '-'}
-                        </td>,
-                        <td key={`acc-remarks-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst?.accounting_remarks || '-'}
-                        </td>,
-                        <td key={`ak-remarks-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst?.ak_remarks || '-'}
-                        </td>,
-                        <td key={`ak-approval-${student.id}-${idx}`} className={paymentCellClass}>
-                          {inst?.ak_approval || '-'}
-                        </td>,
-                      ]);
-                    })}
+                    <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
+                      <ColumnFilterMenu
+                        label="ZONE"
+                        options={columnOptions.zone}
+                        selectedValues={columnFilters.zone || []}
+                        onApply={(values) => handleColumnFilterChange('zone', values)}
+                        onSort={(dir) => handleSort('zone', dir)}
+                        sortDir={sortBy === 'zone' ? sortDir : null}
+                        enableOptions={true}
+                      />
+                    </th>
+                    <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
+                      <ColumnFilterMenu
+                        label="ASSOCIATE WISE"
+                        options={columnOptions.associate_wise_installments}
+                        selectedValues={columnFilters.associate_wise_installments || []}
+                        onApply={(values) => handleColumnFilterChange('associate_wise_installments', values)}
+                        onSort={(dir) => handleSort('associate_wise_installments', dir)}
+                        sortDir={sortBy === 'associate_wise_installments' ? sortDir : null}
+                        enableOptions={true}
+                      />
+                    </th>
+                    <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
+                      <ColumnFilterMenu
+                        label="TOTAL"
+                        options={columnOptions.total_amount}
+                        selectedValues={columnFilters.total_amount || []}
+                        onApply={(values) => handleColumnFilterChange('total_amount', values)}
+                        onSort={(dir) => handleSort('total_amount', dir)}
+                        sortDir={sortBy === 'total_amount' ? sortDir : null}
+                      enableOptions={false}
+                      rangeType="number"
+                      />
+                    </th>
+                    <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
+                      <ColumnFilterMenu
+                        label="RECEIVED"
+                        options={columnOptions.recieved_amount}
+                        selectedValues={columnFilters.recieved_amount || []}
+                        onApply={(values) => handleColumnFilterChange('recieved_amount', values)}
+                        onSort={(dir) => handleSort('recieved_amount', dir)}
+                        sortDir={sortBy === 'recieved_amount' ? sortDir : null}
+                        enableOptions={false}
+                        rangeType="number"
+                      />
+                    </th>
+                    <th className="p-4 text-sm font-semibold text-gray-custom-500 select-none">
+                      <ColumnFilterMenu
+                        label="NET PENDING"
+                        options={columnOptions.net_amount}
+                        selectedValues={columnFilters.net_amount || []}
+                        onApply={(values) => handleColumnFilterChange('net_amount', values)}
+                        onSort={(dir) => handleSort('net_amount', dir)}
+                        sortDir={sortBy === 'net_amount' ? sortDir : null}
+                        enableOptions={false}
+                        rangeType="number"
+                      />
+                    </th>
+                    {[1,2,3,4].flatMap((n) => ([
+                      <th key={`amount-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`Amount ${n}`}
+                          options={columnOptions[`amt_${n}`] || []}
+                          selectedValues={columnFilters[`amt_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`amt_${n}`, values)}
+                          onSort={(dir) => handleSort(`amt_${n}`, dir)}
+                          sortDir={sortBy === `amt_${n}` ? sortDir : null}
+                          enableOptions={false}
+                          rangeType="number"
+                        />
+                      </th>,
+                      <th key={`date-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`Installment Date ${n}`}
+                          options={columnOptions[`date_${n}`] || []}
+                          selectedValues={columnFilters[`date_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`date_${n}`, values)}
+                          onSort={(dir) => handleSort(`date_${n}`, dir)}
+                          sortDir={sortBy === `date_${n}` ? sortDir : null}
+                          enableOptions={false}
+                          isDate
+                          rangeType="date"
+                        />
+                      </th>,
+                      <th key={`recv-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`Received In ${n}`}
+                          options={columnOptions[`recv_${n}`] || []}
+                          selectedValues={columnFilters[`recv_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`recv_${n}`, values)}
+                          onSort={(dir) => handleSort(`recv_${n}`, dir)}
+                          sortDir={sortBy === `recv_${n}` ? sortDir : null}
+                          enableOptions={true}
+                        />
+                      </th>,
+                      <th key={`remarks-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`Remarks ${n}`}
+                          options={columnOptions[`remarks_${n}`] || []}
+                          selectedValues={columnFilters[`remarks_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`remarks_${n}`, values)}
+                          onSort={(dir) => handleSort(`remarks_${n}`, dir)}
+                          sortDir={sortBy === `remarks_${n}` ? sortDir : null}
+                          enableOptions={false}
+                        />
+                      </th>,
+                      <th key={`inst-remarks-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`Installment Remarks ${n}`}
+                          options={columnOptions[`inst_remarks_${n}`] || []}
+                          selectedValues={columnFilters[`inst_remarks_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`inst_remarks_${n}`, values)}
+                          onSort={(dir) => handleSort(`inst_remarks_${n}`, dir)}
+                          sortDir={sortBy === `inst_remarks_${n}` ? sortDir : null}
+                          enableOptions={false}
+                        />
+                      </th>,
+                      <th key={`acc-remarks-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`Accounting Remarks ${n}`}
+                          options={columnOptions[`acc_remarks_${n}`] || []}
+                          selectedValues={columnFilters[`acc_remarks_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`acc_remarks_${n}`, values)}
+                          onSort={(dir) => handleSort(`acc_remarks_${n}`, dir)}
+                          sortDir={sortBy === `acc_remarks_${n}` ? sortDir : null}
+                          enableOptions={false}
+                        />
+                      </th>,
+                      <th key={`ak-remarks-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`AK Remarks ${n}`}
+                          options={columnOptions[`ak_remarks_${n}`] || []}
+                          selectedValues={columnFilters[`ak_remarks_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`ak_remarks_${n}`, values)}
+                          onSort={(dir) => handleSort(`ak_remarks_${n}`, dir)}
+                          sortDir={sortBy === `ak_remarks_${n}` ? sortDir : null}
+                          enableOptions={false}
+                        />
+                      </th>,
+                      <th key={`ak-approval-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label={`AK Approval ${n}`}
+                          options={columnOptions[`ak_approval_${n}`] || []}
+                          selectedValues={columnFilters[`ak_approval_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`ak_approval_${n}`, values)}
+                          onSort={(dir) => handleSort(`ak_approval_${n}`, dir)}
+                          sortDir={sortBy === `ak_approval_${n}` ? sortDir : null}
+                          enableOptions={true}
+                        />
+                      </th>,
+                    ]))}
                     {user?.role !== 'user' && (
-                      <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-start gap-3 whitespace-nowrap">
-                          {user?.role === 'admin' && (
-                            <button
-                              onClick={() => navigate(`/students/${student.id}/edit`)}
-                              className="text-primary font-medium hover:underline"
-                            >
-                              Edit
-                            </button>
-                          )}
-                          <span className="h-4 w-px bg-gray-custom-200" aria-hidden="true" />
-                          <button
-                            onClick={() => askDelete(student.id)}
-                            className="text-red-500 font-medium hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
+                      <th className="p-4 text-sm font-semibold text-gray-custom-500 text-center whitespace-nowrap min-w-[140px]">
+                        Actions
+                      </th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+                </thead>
+                <tbody>
+                    {allStudents.length === 0 ? (
+                      <tr>
+                        {showBulkUi && <td className="p-4" />}
+                        <td className="p-4 text-center text-gray-custom-500" colSpan={skeletonColumns - (showBulkUi ? 1 : 0)}>
+                          No records found. Clear or adjust filters to see results.
+                        </td>
+                      </tr>
+                    ) : allStudents.map((student) => (
+                    <tr 
+                      key={student.id}
+                      className="border-b border-gray-custom-200 last:border-b-0 hover:bg-gray-custom-50 cursor-pointer"
+                      onClick={() => navigate(`/students/${student.id}`)}
+                    >
+                      {showBulkUi && (
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(student.id)}
+                            onChange={(e) => {
+                              const next = new Set(selectedIds);
+                              if (e.target.checked) {
+                                next.add(student.id);
+                              } else {
+                                next.delete(student.id);
+                              }
+                              setSelectedIds(next);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </td>
+                      )}
+                      <td className="p-4 text-gray-custom-600 font-mono">{student.enrollment_number || '-'}</td>
+                      <td className={`p-4 min-w-[220px] whitespace-nowrap ${nameStickyCellClass}`}>
+                        <div className="flex items-center gap-3">
+                          <Avatar name={student.name} />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-custom-800 truncate">{student.name}</p>
+                            <p className="text-sm text-gray-custom-500 truncate">{student.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{student.zone || '-'}</td>
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{student.associate_wise_installments || '-'}</td>
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.total_amount)}</td>
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.recieved_amount ?? student.received_amount)}</td>
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.net_amount)}</td>
+                      {[0,1,2,3].flatMap((idx) => {
+                        const inst = getInstallmentData(student.id, idx);
+                        return ([
+                          <td key={`amt-${student.id}-${idx}`} className={paymentCellClass}>
+                            {inst ? formatCurrency(inst.amount) : '-'}
+                          </td>,
+                          <td key={`date-${student.id}-${idx}`} className={paymentCellClass}>
+                            {inst ? formatDateDisplay(inst.installment_date) : '-'}
+                          </td>,
+                          <td key={`recv-${student.id}-${idx}`} className={paymentCellClass}>
+                            {inst?.payment_recieved_in || '-'}
+                          </td>,
+                          <td key={`remarks-${student.id}-${idx}`} className={paymentCellClass}>
+                            {inst?.remarks || '-'}
+                          </td>,
+                          <td key={`inst-remarks-${student.id}-${idx}`} className={paymentCellClass}>
+                            {inst?.installment_remarks || '-'}
+                          </td>,
+                          <td key={`acc-remarks-${student.id}-${idx}`} className={paymentCellClass}>
+                            {inst?.accounting_remarks || '-'}
+                          </td>,
+                          <td key={`ak-remarks-${student.id}-${idx}`} className={paymentCellClass}>
+                            {!inst ? (
+                              '-'
+                            ) : canEditAk ? (
+                              <input
+                                type="text"
+                                value={akEdits[inst.id]?.ak_remarks ?? inst.ak_remarks ?? ''}
+                                disabled={!!savingPayments[inst.id]}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={preventEnterSubmit}
+                                onChange={(e) =>
+                                  setAkEdits((prev) => ({
+                                    ...prev,
+                                    [inst.id]: { ...prev[inst.id], ak_remarks: e.target.value },
+                                  }))
+                                }
+                                onBlur={() => {
+                                  const nextVal = akEdits[inst.id]?.ak_remarks ?? inst.ak_remarks ?? '';
+                                  if ((inst.ak_remarks ?? '') !== nextVal) {
+                                    saveAkChanges(inst, { ak_remarks: nextVal });
+                                  }
+                                }}
+                                className="w-full rounded border border-gray-custom-200 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
+                              />
+                            ) : (
+                              inst.ak_remarks || '-'
+                            )}
+                          </td>,
+                          <td key={`ak-approval-${student.id}-${idx}`} className={paymentCellClass}>
+                            {!inst ? (
+                              '-'
+                            ) : canEditAk ? (
+                              <select
+                                value={akEdits[inst.id]?.ak_approval ?? inst.ak_approval ?? ''}
+                                disabled={!!savingPayments[inst.id]}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={preventEnterSubmit}
+                                onChange={(e) => {
+                                  const nextVal = e.target.value;
+                                  setAkEdits((prev) => ({
+                                    ...prev,
+                                    [inst.id]: { ...prev[inst.id], ak_approval: nextVal },
+                                  }));
+                                  if ((inst.ak_approval ?? '') !== nextVal) {
+                                    saveAkChanges(inst, { ak_approval: nextVal });
+                                  }
+                                }}
+                                className="w-full rounded border border-gray-custom-200 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
+                              >
+                                <option value="">Select</option>
+                                {AK_APPROVAL_OPTIONS.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              inst.ak_approval || '-'
+                            )}
+                          </td>,
+                        ]);
+                      })}
+                      {user?.role !== 'user' && (
+                        <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-start gap-3 whitespace-nowrap">
+                            {user?.role === 'admin' && (
+                              <button
+                                onClick={() => navigate(`/students/${student.id}/edit`)}
+                                className="text-primary font-medium hover:underline"
+                              >
+                                Edit
+                              </button>
+                            )}
+                            <span className="h-4 w-px bg-gray-custom-200" aria-hidden="true" />
+                            <button
+                              onClick={() => askDelete(student.id)}
+                              className="text-red-500 font-medium hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
 
-        <div className="flex items-center justify-between pt-4">
-          <p className="text-sm text-gray-custom-600">{total > 0 ? `Showing ${startItem}-${endItem} of ${total}` : 'Showing 0 of 0'}</p>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handlePrevPage}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-gray-custom-600 hover:bg-gray-custom-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          <div className="sticky bottom-[-15px] left-0 right-0 bg-white pt-2 border-gray-custom-200 z-30">
+            <div
+              className="overflow-x-auto"
+              ref={barScrollRef}
+              onScroll={() => syncHorizontalScroll('bar')}
             >
-              <ChevronLeft size={16} />
-              Previous
-            </button>
-            <button 
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-md border bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight size={16} />
-            </button>
+              <div className="h-3" style={{ width: `${scrollWidth}px` }} />
+            </div>
+            <div className="flex items-center justify-between pt-3">
+              <p className="text-sm text-gray-custom-600">{total > 0 ? `Showing ${startItem}-${endItem} of ${total}` : 'Showing 0 of 0'}</p>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center gap-1 rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-gray-custom-600 hover:bg-gray-custom-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} />
+                  Previous
+                </button>
+                <button 
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center gap-1 rounded-md border bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       <ConfirmDialog

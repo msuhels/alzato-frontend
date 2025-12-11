@@ -1,7 +1,8 @@
-// React import not needed for JSX with new TS/JSX transform
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, CreditCard, LogOut, User as UserIcon, X, Bell } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { activityLogService } from '../services/activityLog';
 // Replace branded text+icon with the provided SVG logo
 
 type SidebarProps = {
@@ -11,6 +12,34 @@ type SidebarProps = {
 
 const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { logout, user } = useAuth();
+  const [unreadCount, setUnreadCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchUnread = async () => {
+      if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
+        if (isMounted) setUnreadCount(null);
+        return;
+      }
+      try {
+        const res = await activityLogService.getUnreadCount();
+        if (isMounted) setUnreadCount(res.total ?? 0);
+      } catch (error) {
+        // Swallow errors; badge is non-critical UI
+        if (isMounted) setUnreadCount(0);
+      }
+    };
+
+    fetchUnread();
+    const handleActivityUpdate = () => fetchUnread();
+    window.addEventListener('activityLog:updated', handleActivityUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('activityLog:updated', handleActivityUpdate);
+    };
+  }, [user]);
 
   const navItems = [
     ...(user?.role === 'admin' ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }] : []),
@@ -47,7 +76,12 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
                 onClick={onClose}
               >
                 <item.icon size={20} />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {item.label === 'Updates' && (unreadCount ?? 0) > 0 && (
+                  <span className="ml-auto rounded-full bg-red-500 px-2 text-xs font-semibold text-white">
+                    {unreadCount && unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </NavLink>
             </li>
           ))}

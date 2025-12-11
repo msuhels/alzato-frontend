@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { activityLogService, ActivityLogItem } from '../services/activityLog';
 import { studentsService } from '../services/students';
@@ -6,6 +6,7 @@ import { paymentsService } from '../services/payments';
 import TableSkeleton from '../components/TableSkeleton';
 import { formatDate } from '../lib/dateUtils';
 import { AkApprovalStatus } from '../types';
+import { AK_APPROVAL_OPTIONS } from '../lib/constants';
 
 const ApprovalStatusBadge = ({ status }: { status: AkApprovalStatus }) => {
   const statusStyles: Record<AkApprovalStatus, string> = {
@@ -23,7 +24,11 @@ const UpdatesPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [studentNames, setStudentNames] = useState<Record<number, string>>({});
   const [akApprovals, setAkApprovals] = useState<Record<number, AkApprovalStatus | null>>({});
+  const [akRemarks, setAkRemarks] = useState<Record<number, string>>({});
+  const [savingIds, setSavingIds] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
+  const markReadTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
+  const markReadFlags = useRef<Record<number, { approval: boolean; remarks: boolean }>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -55,6 +60,7 @@ const UpdatesPage = () => {
           (item.activity_type === 'payment_received' || item.activity_type === 'ak_approval_updated') && item.payment_id
         );
         const approvalMap: Record<number, AkApprovalStatus | null> = {};
+        const remarksMap: Record<number, string> = {};
         
         // Get unique payment IDs to avoid duplicate fetches
         const uniquePaymentIds = [...new Set(paymentItems.map(item => item.payment_id).filter((id): id is number => id !== undefined))];
@@ -67,6 +73,9 @@ const UpdatesPage = () => {
               const payment = (paymentRes as any)?.payment || paymentRes;
               if (payment?.ak_approval && ['Completed', 'No', 'Partial', 'Suspense'].includes(payment.ak_approval)) {
                 approvalMap[paymentId] = payment.ak_approval as AkApprovalStatus;
+              }
+              if (payment?.ak_remarks) {
+                remarksMap[paymentId] = payment.ak_remarks;
               }
             } catch (err) {
               // Payment fetch failed, try to parse from description for ak_approval_updated items
@@ -86,6 +95,7 @@ const UpdatesPage = () => {
         );
         
         setAkApprovals(approvalMap);
+        setAkRemarks(remarksMap);
       } catch (e: any) {
         setError(e?.response?.data?.error || 'Failed to load updates');
       } finally {
@@ -99,8 +109,64 @@ const UpdatesPage = () => {
     try {
       await activityLogService.markRead(activityId);
       setItems((prev) => prev.filter((item) => item.id !== activityId));
+      window.dispatchEvent(new Event('activityLog:updated'));
     } catch (e: any) {
       setError(e?.response?.data?.error || 'Failed to update activity');
+    }
+  };
+
+  const scheduleMarkRead = (activityId: number, changed: { approval?: boolean; remarks?: boolean }) => {
+    const existingFlags = markReadFlags.current[activityId] || { approval: false, remarks: false };
+    const nextFlags = {
+      approval: existingFlags.approval || !!changed.approval,
+      remarks: existingFlags.remarks || !!changed.remarks,
+    };
+    markReadFlags.current[activityId] = nextFlags;
+
+    if (markReadTimers.current[activityId]) {
+      clearTimeout(markReadTimers.current[activityId]);
+    }
+
+    const delay = nextFlags.approval && nextFlags.remarks ? 30_000 : 120_000;
+    markReadTimers.current[activityId] = setTimeout(() => {
+      markReadAndRemove(activityId);
+      delete markReadTimers.current[activityId];
+      delete markReadFlags.current[activityId];
+    }, delay);
+  };
+
+  useEffect(() => {
+    return () => {
+      Object.values(markReadTimers.current).forEach((t) => clearTimeout(t));
+    };
+  }, []);
+
+  const updateAkField = async (activityId: number, paymentId: number | undefined, payload: { ak_approval?: string; ak_remarks?: string }) => {
+    if (!paymentId) {
+      setError('Payment not found for this activity');
+      return;
+    }
+    setSavingIds((prev) => new Set(prev).add(activityId));
+    try {
+      await activityLogService.updateAkFields(activityId, payload);
+
+      if (payload.ak_approval !== undefined) {
+        setAkApprovals((prev) => ({ ...prev, [paymentId]: payload.ak_approval as AkApprovalStatus }));
+      }
+      if (payload.ak_remarks !== undefined) {
+        setAkRemarks((prev) => ({ ...prev, [paymentId]: payload.ak_remarks ?? '' }));
+      }
+
+      scheduleMarkRead(activityId, { approval: payload.ak_approval !== undefined, remarks: payload.ak_remarks !== undefined });
+      window.dispatchEvent(new Event('activityLog:updated'));
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Failed to update AK fields');
+    } finally {
+      setSavingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(activityId);
+        return next;
+      });
     }
   };
 
@@ -126,6 +192,7 @@ const UpdatesPage = () => {
                   <th className="p-4 text-sm font-semibold text-gray-custom-500">Title</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500">Description</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500">AK Approval</th>
+                  <th className="p-4 text-sm font-semibold text-gray-custom-500">AK Remarks</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500">Student ID</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500">Payment ID</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500">Created At</th>
@@ -137,13 +204,56 @@ const UpdatesPage = () => {
                   const akApproval = item.payment_id ? akApprovals[item.payment_id] : null;
                   return (
                   <tr key={item.id} className="border-b border-gray-custom-200 last:border-b-0">
-                    <td className="p-4 text-gray-custom-800">{item.student_id ? (studentNames[item.student_id] || 'Loading...') : '-'}</td>
+                    <td className="p-4 text-gray-custom-800">
+                      {item.student_id ? (
+                        <button
+                          className="text-left text-primary hover:underline"
+                          onClick={() => navigate(`/students/${item.student_id}`)}
+                        >
+                          {studentNames[item.student_id] || 'Loading...'}
+                        </button>
+                      ) : (
+                        '-'
+                      )}
+                    </td>
                     <td className="p-4 text-gray-custom-700 whitespace-nowrap">{item.activity_type}</td>
                     <td className="p-4 text-gray-custom-800">{item.title || '-'}</td>
                     <td className="p-4 text-gray-custom-600">{item.description || '-'}</td>
                     <td className="p-4">
-                      {akApproval ? (
-                        <ApprovalStatusBadge status={akApproval} />
+                      {item.payment_id ? (
+                        <select
+                          className="rounded border border-gray-custom-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          value={akApproval || ''}
+                          disabled={savingIds.has(item.id)}
+                          onChange={(e) => updateAkField(item.id, item.payment_id, { ak_approval: e.target.value })}
+                        >
+                          <option value="">Select</option>
+                          {AK_APPROVAL_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="text-gray-custom-400">-</span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      {item.payment_id ? (
+                        <input
+                          className="w-full rounded border border-gray-custom-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          value={akRemarks[item.payment_id] ?? ''}
+                          disabled={savingIds.has(item.id)}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setAkRemarks((prev) => ({ ...prev, [item.payment_id as number]: value }));
+                          }}
+                          onBlur={(e) => updateAkField(item.id, item.payment_id, { ak_remarks: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              updateAkField(item.id, item.payment_id, { ak_remarks: (e.target as HTMLInputElement).value });
+                            }
+                          }}
+                        />
                       ) : (
                         <span className="text-gray-custom-400">-</span>
                       )}

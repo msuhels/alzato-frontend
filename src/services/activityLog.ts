@@ -30,5 +30,22 @@ export const activityLogService = {
     );
     return data;
   },
+
+  async getUnreadCount(): Promise<{ success: boolean; total: number }> {
+    const { data } = await axios.get<{ success: boolean; total: number }>(
+      `${API_BASE_URL}/activity-log/unread-count`,
+      { headers: { ...getAuthHeaders() } }
+    );
+    return data;
+  },
+
+  async updateAkFields(activityId: number | string, payload: { ak_approval?: string; ak_remarks?: string }) {
+    const { data } = await axios.patch<{ success: boolean; payment: any }>(
+      `${API_BASE_URL}/activity-log/${encodeURIComponent(String(activityId))}/ak-fields`,
+      payload,
+      { headers: { ...getAuthHeaders() } }
+    );
+    return data;
+  },
 };
 
