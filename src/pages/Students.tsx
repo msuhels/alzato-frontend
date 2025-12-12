@@ -54,7 +54,16 @@ const StudentsPage = () => {
   const [paymentsByStudent, setPaymentsByStudent] = useState<Record<string | number, PaymentListItem[]>>({});
   const [optionPool, setOptionPool] = useState<StudentListItem[]>([]);
   const [optionPayments, setOptionPayments] = useState<Record<string | number, PaymentListItem[]>>({});
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  
+  // Load column filters from localStorage on mount
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('students-column-filters');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   const [akEdits, setAkEdits] = useState<Record<string | number, { ak_remarks?: string; ak_approval?: string }>>({});
   const [savingPayments, setSavingPayments] = useState<Record<string | number, boolean>>({});
   const tableRef = useRef<HTMLTableElement>(null);
@@ -173,6 +182,15 @@ const StudentsPage = () => {
   useEffect(() => { fetchStudents(); }, [searchTerm, sortBy, sortDir, columnFilters, currentPage]);
   useEffect(() => { setCurrentPage(1); }, [searchTerm, sortBy, sortDir, columnFilters]);
 
+  // Save column filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('students-column-filters', JSON.stringify(columnFilters));
+    } catch (e) {
+      console.warn('Failed to save filters to localStorage', e);
+    }
+  }, [columnFilters]);
+
   // Fetch a larger pool once for column dropdown values so users can see all options, not only current page.
   useEffect(() => {
     const fetchOptions = async () => {
@@ -269,6 +287,20 @@ const StudentsPage = () => {
     setColumnFilters(prev => ({ ...prev, [column]: values }));
     setCurrentPage(1);
   };
+
+  const handleClearAllFilters = () => {
+    setColumnFilters({});
+    setCurrentPage(1);
+    try {
+      localStorage.removeItem('students-column-filters');
+    } catch (e) {
+      console.warn('Failed to clear filters from localStorage', e);
+    }
+  };
+
+  const hasActiveFilters = useMemo(() => {
+    return Object.values(columnFilters).some(values => values && values.length > 0);
+  }, [columnFilters]);
 
   const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
   const baseColumns = showBulkUi ? (user?.role === 'user' ? 8 : 9) : (user?.role === 'user' ? 7 : 8);
@@ -457,18 +489,28 @@ const StudentsPage = () => {
       </div>
       
       <div className="rounded-lg bg-white p-6 shadow-sm">
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-custom-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Search by name.."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full rounded-lg border bg-white py-2.5 pl-12 pr-4 focus:border-primary focus:outline-none"
-          />
+        <div className="flex items-center gap-3 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-custom-400" size={20} />
+            <input 
+              type="text" 
+              placeholder="Search by name.."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full rounded-lg border bg-white py-2.5 pl-12 pr-4 focus:border-primary focus:outline-none"
+            />
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearAllFilters}
+              className="rounded-md border border-gray-custom-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50 transition-colors whitespace-nowrap"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
         <div className="relative pb-24">
@@ -698,8 +740,7 @@ const StudentsPage = () => {
                     ) : allStudents.map((student) => (
                     <tr 
                       key={student.id}
-                      className="border-b border-gray-custom-200 last:border-b-0 hover:bg-gray-custom-50 cursor-pointer"
-                      onClick={() => navigate(`/students/${student.id}`)}
+                      className="border-b border-gray-custom-200 last:border-b-0 hover:bg-gray-custom-50"
                     >
                       {showBulkUi && (
                         <td className="p-4" onClick={(e) => e.stopPropagation()}>
@@ -720,7 +761,10 @@ const StudentsPage = () => {
                         </td>
                       )}
                       <td className="p-4 text-gray-custom-600 font-mono">{student.enrollment_number || '-'}</td>
-                      <td className={`p-4 min-w-[220px] whitespace-nowrap ${nameStickyCellClass}`}>
+                      <td 
+                        className={`p-4 min-w-[220px] whitespace-nowrap ${nameStickyCellClass} cursor-pointer hover:bg-gray-custom-100`}
+                        onClick={() => navigate(`/students/${student.id}`)}
+                      >
                         <div className="flex items-center gap-3">
                           <Avatar name={student.name} />
                           <div className="min-w-0">

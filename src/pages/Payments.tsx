@@ -23,6 +23,7 @@ const PaymentsPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -37,11 +38,29 @@ const PaymentsPage = () => {
   const [bankFilter, setBankFilter] = useState('');
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>({});
+  
+  // Load column filters from localStorage on mount
+  const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>(() => {
+    try {
+      const saved = localStorage.getItem('payments-column-filters');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
   // search-only UI
 
   // Track last requested parameter signature to avoid duplicate fetches in StrictMode
   const lastRequestKeyRef = useRef<string | null>(null);
+
+  // Save column filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('payments-column-filters', JSON.stringify(columnFilters));
+    } catch (e) {
+      console.warn('Failed to save filters to localStorage', e);
+    }
+  }, [columnFilters]);
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -55,38 +74,46 @@ const PaymentsPage = () => {
       }, {});
 
       const params: any = {
-        limit: 1000, // Load a large number to get all payments
-        offset: 0,
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
       };
 
+      // Send all filters to backend
       if (Object.keys(filtersPayload).length > 0) {
         params.column_filters = JSON.stringify(filtersPayload);
       }
       if (bankFilter) params.payment_recieved_in = bankFilter;
       if (dateFrom) params.installment_from = dateFrom;
       if (dateTo) params.installment_to = dateTo;
+      if (searchText.trim()) params.q = searchText.trim();
+      if (sortBy) {
+        params.sort_by = sortBy;
+        params.sort_dir = sortDir;
+      }
 
-      // Load all payments for client-side filtering
-      const { items } = await paymentsService.list(params);
+      // Load filtered payments from backend
+      const { items, total } = await paymentsService.list(params);
       setPayments(items);
+      setTotal(total || 0);
       
-      // Load all students to populate the student map
-      // Use a large limit to ensure we get all students
-      const { items: students } = await studentsService.list({ 
-        limit: 10000, // Use a very large limit to get all students
-        offset: 0, 
-        q: undefined 
-      });
+      // Load students for display (only for current page payments)
+      const studentIds = Array.from(new Set(items.map(p => p.student_id).filter(Boolean)));
+      if (studentIds.length > 0) {
+        // Fetch students in batches if needed
+        const { items: students } = await studentsService.list({ 
+          limit: 10000, // Large limit to get all students
+          offset: 0, 
+          q: undefined 
+        });
+        
+        // Update student map with fetched students
+        students.forEach(s => studentMap.set(s.id, s));
+      }
       
-      // Clear and repopulate the student map
-      studentMap.clear();
-      students.forEach(s => studentMap.set(s.id, s));
-      
-      console.log('Loaded students:', students.length);
-      console.log('Student IDs from payments:', Array.from(new Set(items.map(p => p.student_id))));
-      console.log('Missing student IDs:', Array.from(new Set(items.map(p => p.student_id))).filter(id => !studentMap.has(id)));
     } catch (e: any) {
       setError(e?.response?.data?.error || 'Failed to load payments');
+      setPayments([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
@@ -111,13 +138,18 @@ const PaymentsPage = () => {
     }
   };
 
+  // Reset to page 1 when filters, search, or sort change
   useEffect(() => {
-    // Reload from backend whenever server-side filters change
-    const key = JSON.stringify({ columnFilters, bankFilter, dateFrom, dateTo });
+    setCurrentPage(1);
+  }, [columnFilters, bankFilter, dateFrom, dateTo, searchText, sortBy, sortDir]);
+
+  useEffect(() => {
+    // Reload from backend whenever filters, search, sort, or page changes
+    const key = JSON.stringify({ columnFilters, bankFilter, dateFrom, dateTo, searchText, sortBy, sortDir, currentPage });
     if (lastRequestKeyRef.current === key) return;
     lastRequestKeyRef.current = key;
     fetchPayments();
-  }, [columnFilters, bankFilter, dateFrom, dateTo]);
+  }, [columnFilters, bankFilter, dateFrom, dateTo, searchText, sortBy, sortDir, currentPage]);
 
   // search-only UI: clear handled via manual backspace; no separate handler
 
@@ -161,151 +193,11 @@ const PaymentsPage = () => {
     };
   }, [payments]);
 
-  // First compute base filtered payments without applying the active tab.
-  const baseFilteredPayments = useMemo(() => {
-    let result = payments;
-    const q = searchText.trim().toLowerCase();
-    if (q) {
-      result = result.filter(p => {
-        const student = studentMap.get(p.student_id);
-        const studentName = (student?.name || '').toLowerCase();
-        const enrollment = (student?.enrollment_number || '').toLowerCase();
-        const purpose = (p.purpose || '').toLowerCase();
-        const remarks = (p.remarks || '').toLowerCase();
-        const akRemarks = (p.ak_remarks || '').toLowerCase();
-        const installmentRemarks = ((p as any).installment_remarks || '').toLowerCase();
-        const accountingRemarks = (p.accounting_remarks || '').toLowerCase();
-        const paymentTypeText = (p.payment_type || '').toLowerCase();
-        const receivedInText = (p.payment_recieved_in || '').toLowerCase();
-        return (
-          studentName.includes(q) ||
-          enrollment.includes(q) ||
-          purpose.includes(q) ||
-          remarks.includes(q) ||
-          akRemarks.includes(q) ||
-          installmentRemarks.includes(q) ||
-          accountingRemarks.includes(q) ||
-          paymentTypeText.includes(q) ||
-          receivedInText.includes(q)
-        );
-      });
-    }
-    // Date filter
-    if (dateFrom) {
-      result = result.filter(p => new Date(p.installment_date) >= new Date(dateFrom));
-    }
-    if (dateTo) {
-      result = result.filter(p => new Date(p.installment_date) <= new Date(dateTo));
-    }
-    // Bank filter: match Received In
-    if (bankFilter) {
-      const target = bankFilter.toLowerCase();
-      result = result.filter(p => {
-        const received = (p.payment_recieved_in || '').toLowerCase();
-        return received === target;
-      });
-    }
-    // Column-level filters from header dropdowns
-    Object.entries(columnFilters).forEach(([column, values]) => {
-      if (!values || values.length === 0) return;
-      const getter = columnValueGetters[column];
-      if (!getter) return;
-      result = result.filter(p => values.includes(getter(p)));
-    });
-    return result;
-  }, [payments, searchText, dateFrom, dateTo, bankFilter, columnFilters]);
-
-  // Now apply the active tab and sorting for the visible list
-  const filteredPayments = useMemo(() => {
-    let result = baseFilteredPayments;
-    // if (activeTab !== 'ALL') {
-    //   result = result.filter(p => (p.payment_type || '').toLowerCase() === activeTab.toLowerCase());
-    // }
-    if (sortBy) {
-      result = [...result].sort((a, b) => {
-        let aValue: any;
-        let bValue: any;
-        switch (sortBy) {
-          case 'student_name':
-            aValue = studentMap.get(a.student_id)?.name || '';
-            bValue = studentMap.get(b.student_id)?.name || '';
-            break;
-          case 'date':
-            aValue = new Date(a.installment_date);
-            bValue = new Date(b.installment_date);
-            break;
-          case 'installment':
-            aValue = a.installment_number || 0;
-            bValue = b.installment_number || 0;
-            break;
-          case 'amount':
-            aValue = a.amount || 0;
-            bValue = b.amount || 0;
-            break;
-          case 'payment_type':
-            aValue = a.payment_type || '';
-            bValue = b.payment_type || '';
-            break;
-          case 'purpose':
-            aValue = a.purpose || '';
-            bValue = b.purpose || '';
-            break;
-          case 'payment_recieved_in':
-            aValue = a.payment_recieved_in || '';
-            bValue = b.payment_recieved_in || '';
-            break;
-          case 'remarks':
-            aValue = a.remarks || '';
-            bValue = b.remarks || '';
-            break;
-          case 'installment_remarks':
-            aValue = (a as any).installment_remarks || '';
-            bValue = (b as any).installment_remarks || '';
-            break;
-          case 'accounting_remarks':
-            aValue = a.accounting_remarks || '';
-            bValue = b.accounting_remarks || '';
-            break;
-          case 'ak_approval':
-            aValue = a.ak_approval || '';
-            bValue = b.ak_approval || '';
-            break;
-          case 'ak_remarks':
-            aValue = a.ak_remarks || '';
-            bValue = b.ak_remarks || '';
-            break;
-          default:
-            return 0;
-        }
-        if (aValue < bValue) return sortDir === 'asc' ? -1 : 1;
-        if (aValue > bValue) return sortDir === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-    return result;
-  }, [baseFilteredPayments, sortBy, sortDir]);
-
-  // Calculate filtered counts for tabs
-  // const filteredCounts = useMemo(() => {
-  //   const allFiltered = baseFilteredPayments;
-  //   const installmentFiltered = allFiltered.filter(p => (p.payment_type || '').toLowerCase() === 'installment');
-  //   const otherFiltered = allFiltered.filter(p => (p.payment_type || '').toLowerCase() === 'other');
-  //   
-  //   return {
-  //     all: allFiltered.length,
-  //     installment: installmentFiltered.length,
-  //     other: otherFiltered.length,
-  //   };
-  // }, [baseFilteredPayments]);
-
-  // Paginate the filtered results
-  const paginatedPayments = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return filteredPayments.slice(startIndex, endIndex);
-  }, [filteredPayments, currentPage, itemsPerPage]);
+  // All filtering is now done on the backend
+  // Payments returned from backend are already filtered and sorted
+  const filteredPayments = payments;
   
-  const totalPages = Math.max(1, Math.ceil(filteredPayments.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
   // const handleTabChange = (tab: PaymentTab) => {
   //   setActiveTab(tab);
@@ -314,8 +206,22 @@ const PaymentsPage = () => {
 
   const handleColumnFilterChange = (column: string, values: string[]) => {
     setColumnFilters(prev => ({ ...prev, [column]: values }));
-    setCurrentPage(1);
+    setCurrentPage(1); // Reset to first page when filters change
   };
+
+  const handleClearAllFilters = () => {
+    setColumnFilters({});
+    setCurrentPage(1);
+    try {
+      localStorage.removeItem('payments-column-filters');
+    } catch (e) {
+      console.warn('Failed to clear filters from localStorage', e);
+    }
+  };
+
+  const hasActiveFilters = useMemo(() => {
+    return Object.values(columnFilters).some(values => values && values.length > 0);
+  }, [columnFilters]);
 
   const handleSort = (column: string, dir?: 'asc' | 'desc') => {
     if (dir) {
@@ -338,11 +244,10 @@ const PaymentsPage = () => {
   // ];
 
   const renderTableForTab = () => {
-    const currentPayments = paginatedPayments;
-    // Use a single table with full columns for all tabs for consistency
+    // Payments are already filtered and paginated by backend
     return (
       <AllPaymentsTable
-        payments={currentPayments}
+        payments={filteredPayments}
         isAdmin={isAdmin}
         onDelete={requestDelete}
         onSort={handleSort}
@@ -360,14 +265,18 @@ const PaymentsPage = () => {
       <h1 className="text-2xl font-bold text-gray-custom-900 mb-6">All Payments</h1>
       <div className="rounded-lg bg-white p-6 shadow-sm">
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <div className="flex items-end justify-between mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
           <div>
             <label htmlFor="searchInput" className="block text-sm font-medium text-gray-custom-700 mb-1">Search</label>
             <input
               type="text"
               id="searchInput"
               value={searchText}
-              onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1); }}
+              onChange={(e) => { 
+                setSearchText(e.target.value); 
+                setCurrentPage(1); 
+              }}
               placeholder="Search (student, enrollment, purpose, remarks, accounting remarks)"
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -406,6 +315,15 @@ const PaymentsPage = () => {
               ))}
             </select>
           </div>
+          </div>
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearAllFilters}
+              className="ml-4 rounded-md border border-gray-custom-300 bg-white px-4 py-2 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50 transition-colors"
+            >
+              Clear Filters
+            </button>
+          )}
         </div>
         {/* Tabs hidden per request; showing all payments only */}
         {/* <div className="border-b border-gray-200">
@@ -429,7 +347,7 @@ const PaymentsPage = () => {
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
           {loading ? (
             <TableSkeleton rows={10} columns={isAdmin ? 12 : 11} />
-          ) : filteredPayments.length === 0 ? (
+          ) : payments.length === 0 ? (
             <div className="text-center text-gray-custom-500 py-8">No records found.</div>
           ) : (
             renderTableForTab()
@@ -449,7 +367,7 @@ const PaymentsPage = () => {
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
-          totalItems={filteredPayments.length}
+          totalItems={total}
           itemsPerPage={itemsPerPage}
         />
       </div>
@@ -572,11 +490,13 @@ const AllPaymentsTable = ({
                           <ColumnFilterMenu
                             label="Date"
                             options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
+                            selectedValues={columnFilters.date || []}
+                            onApply={(values) => onFilterChange('date', values)}
                             onSort={(dir) => onSort('date', dir)}
                             sortDir={sortBy === 'date' ? sortDir : null}
                             enableOptions={false}
+                            isDate
+                            rangeType="date"
                           />
                         </th>
                         {/* <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
@@ -594,22 +514,24 @@ const AllPaymentsTable = ({
                           <ColumnFilterMenu
                             label="Installment"
                             options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
+                            selectedValues={columnFilters.installment || []}
+                            onApply={(values) => onFilterChange('installment', values)}
                             onSort={(dir) => onSort('installment', dir)}
                             sortDir={sortBy === 'installment' ? sortDir : null}
                             enableOptions={false}
+                            rangeType="number"
                           />
                         </th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
                           <ColumnFilterMenu
                             label="Amount"
                             options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
+                            selectedValues={columnFilters.amount || []}
+                            onApply={(values) => onFilterChange('amount', values)}
                             onSort={(dir) => onSort('amount', dir)}
                             sortDir={sortBy === 'amount' ? sortDir : null}
                             enableOptions={false}
+                            rangeType="number"
                           />
                         </th>
                         
