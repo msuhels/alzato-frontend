@@ -18,6 +18,7 @@ export type PaymentListItem = {
   accounting_remarks?: string;
   installment_remarks?: string;
   net_amount?: number; // Optional backend-calculated field
+  is_read?: boolean; // Whether payment has been read
 };
 
 export type PaymentCreateBody = {
@@ -120,6 +121,43 @@ export const paymentsService = {
       filename = decodeURIComponent((match?.[1] || match?.[2] || '').trim());
     }
     return { blob: response.data as Blob, filename };
+  },
+
+  // Unread payments methods (replaces activity log)
+  async listUnread(params: {
+    limit?: number; offset?: number; sort_by?: string; sort_dir?: 'asc' | 'desc';
+  } = {}): Promise<PaginatedResponse<PaymentListItem>> {
+    const { data } = await axios.get<PaginatedResponse<PaymentListItem>>(`${API_BASE_URL}/payments/unread`, {
+      params,
+      headers: { ...getAuthHeaders() },
+    });
+    return data;
+  },
+
+  async markRead(id: string | number): Promise<{ success: boolean; payment: PaymentListItem }> {
+    const { data } = await axios.patch<{ success: boolean; payment: PaymentListItem }>(
+      `${API_BASE_URL}/payments/${encodeURIComponent(String(id))}/read`,
+      {},
+      { headers: { ...getAuthHeaders() } }
+    );
+    return data;
+  },
+
+  async getUnreadCount(): Promise<{ success: boolean; total: number }> {
+    const { data } = await axios.get<{ success: boolean; total: number }>(
+      `${API_BASE_URL}/payments/unread-count`,
+      { headers: { ...getAuthHeaders() } }
+    );
+    return data;
+  },
+
+  async updateAkFields(id: string | number, payload: { ak_approval?: string; ak_remarks?: string }): Promise<{ success: boolean; payment: PaymentListItem }> {
+    const { data } = await axios.patch<{ success: boolean; payment: PaymentListItem }>(
+      `${API_BASE_URL}/payments/${encodeURIComponent(String(id))}/ak-fields`,
+      payload,
+      { headers: { ...getAuthHeaders() } }
+    );
+    return data;
   },
 };
 

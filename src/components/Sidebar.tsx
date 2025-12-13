@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, Users, CreditCard, LogOut, User as UserIcon, X, Bell } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
-import { activityLogService } from '../services/activityLog';
+import { paymentsService } from '../services/payments';
 // Replace branded text+icon with the provided SVG logo
 
 type SidebarProps = {
@@ -23,7 +23,7 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         return;
       }
       try {
-        const res = await activityLogService.getUnreadCount();
+        const res = await paymentsService.getUnreadCount();
         if (isMounted) setUnreadCount(res.total ?? 0);
       } catch (error) {
         // Swallow errors; badge is non-critical UI

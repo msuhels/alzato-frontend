@@ -106,18 +106,18 @@ const AddPaymentPage = () => {
         {department ? `New ${department} Payment` : 'Add New Payment'}
       </h1>
       <p className="text-gray-custom-600 mb-2">For <span className="font-semibold text-gray-custom-800">{studentName || 'Student'}</span></p>
-      {department && (
+      {/* {department && (
         <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
             <span className="font-semibold">Next Installment:</span> This will be installment #{getNextInstallmentNumber(existingPayments, department)} for {department} payments
           </p>
         </div>
-      )}
+      )} */}
       
       {department ? (
-        <form onSubmit={handleSubmit} className="mx-auto max-w-4xl">
+        <form onSubmit={handleSubmit} className="mx-auto max-w-7xl">
           {renderFormForDepartment()}
-          <div className="mt-8 flex items-center justify-end gap-x-4 border-t border-gray-900/10 pt-8">
+          <div className="mt-6 flex items-center justify-end gap-x-4 border-t border-gray-900/10 pt-4">
             <button type="button" onClick={() => navigate(`/students/${studentId}`)} className="text-sm font-semibold leading-6 text-gray-custom-900">
               Cancel
             </button>
@@ -158,60 +158,67 @@ const DepartmentSelector = ({ onSelect }: { onSelect: (dept: typeof PAYMENT_DEPA
 // --- Department Specific Forms ---
 
 const AccountingForm = ({ isAdmin }: { isAdmin: boolean }) => (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-        <div className="sm:col-span-3">
-            <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
-            <input type="date" id="date" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
-            <input type="number" id="amount" step="0.01" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
-            <select id="purpose" defaultValue="" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_PURPOSES.map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
-            <input type="number" id="installmentNumber" min={1} placeholder="e.g. 1" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
-            <select id="receivedIn" defaultValue="" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
-            <select id="aksApproval" required disabled={!isAdmin} defaultValue={'No'} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
-                {AK_APPROVAL_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-6">
-            <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
-            <textarea id="remarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-        </div>
-        <div className="sm:col-span-6">
-            <label htmlFor="appRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remarks</label>
-            <textarea id="appRemarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-        </div>
-        {isAdmin && (
-            <div className="sm:col-span-6">
-                <label htmlFor="aksRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
-                <textarea
-                    id="aksRemarks"
-                    rows={3}
-                    className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"
-                ></textarea>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        {/* Left Column */}
+        <div className="space-y-4">
+            <div>
+                <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
+                <input type="date" id="date" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
             </div>
-        )}
-        <div className="sm:col-span-6">
-            <label htmlFor="accRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Accounting Remarks</label>
-            <textarea id="accRemarks" rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+            <div>
+                <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
+                <input type="number" id="amount" step="0.01" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+            <div>
+                <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
+                <select id="purpose" defaultValue="" className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                    <option value="">Select</option>
+                    {PAYMENT_PURPOSES.map(opt => <option key={opt}>{opt}</option>)}
+                </select>
+            </div>
+            <div>
+                <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
+                <input type="number" id="installmentNumber" min={1} placeholder="e.g. 1" className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+            <div>
+                <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
+                <select id="receivedIn" defaultValue="" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                    <option value="">Select</option>
+                    {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+            </div>
+            <div>
+                <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
+                <select id="aksApproval" required disabled={!isAdmin} defaultValue={'No'} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    {AK_APPROVAL_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
+                </select>
+            </div>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-4">
+            <div>
+                <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
+                <textarea id="remarks" rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+            </div>
+            <div>
+                <label htmlFor="appRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remarks</label>
+                <textarea id="appRemarks" rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+            </div>
+            {isAdmin && (
+                <div>
+                    <label htmlFor="aksRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
+                    <textarea
+                        id="aksRemarks"
+                        rows={1}
+                        className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"
+                    ></textarea>
+                </div>
+            )}
+            <div>
+                <label htmlFor="accRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Accounting Remarks</label>
+                <textarea id="accRemarks" rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+            </div>
         </div>
     </div>
 );
@@ -219,42 +226,49 @@ const AccountingForm = ({ isAdmin }: { isAdmin: boolean }) => (
 const OtherForm = ({ isAdmin }: { isAdmin: boolean }) => <SharedForm isAdmin={isAdmin} />;
 
 const SharedForm = ({ isAdmin }: { isAdmin: boolean }) => (
-    <div className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6">
-        <div className="sm:col-span-3">
-            <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
-            <input type="date" id="date" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        {/* Left Column */}
+        <div className="space-y-4">
+            <div>
+                <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
+                <input type="date" id="date" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+            <div>
+                <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
+                <input type="number" id="amount" step="0.01" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+            <div>
+                <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
+                <select id="purpose" defaultValue="" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                    <option value="">Select</option>
+                    {PAYMENT_PURPOSES.map(opt => <option key={opt}>{opt}</option>)}
+                </select>
+            </div>
+            <div>
+                <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
+                <input type="number" id="installmentNumber" min={1} placeholder="e.g. 1" className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+            <div>
+                <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
+                <select id="receivedIn" defaultValue="" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                    <option value="">Select</option>
+                    {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+            </div>
+            <div>
+                <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
+                <select id="aksApproval" required disabled={!isAdmin} defaultValue={'No'} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
+                    {AK_APPROVAL_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
+                </select>
+            </div>
         </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
-            <input type="number" id="amount" step="0.01" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
-            <select id="purpose" defaultValue="" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_PURPOSES.map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
-            <input type="number" id="installmentNumber" min={1} placeholder="e.g. 1" className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
-            <select id="receivedIn" defaultValue="" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-                <option value="">Select</option>
-                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-3">
-            <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
-            <select id="aksApproval" required disabled={!isAdmin} defaultValue={'No'} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
-                {AK_APPROVAL_OPTIONS.map(opt => <option key={opt}>{opt}</option>)}
-            </select>
-        </div>
-        <div className="sm:col-span-6">
-            <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
-            <textarea id="remarks" rows={4} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+
+        {/* Right Column */}
+        <div className="space-y-4">
+            <div>
+                <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
+                <textarea id="remarks" rows={4} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+            </div>
         </div>
     </div>
 );

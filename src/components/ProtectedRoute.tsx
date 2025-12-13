@@ -1,13 +1,21 @@
 import React from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import LoadingSpinner from './LoadingSpinner';
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mb-4" />
+          <p className="text-gray-custom-500">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {

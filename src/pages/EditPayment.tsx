@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { paymentsService, PaymentListItem } from '../services/payments';
 import { PAYMENT_PURPOSES, PAYMENT_RECEIVED_IN_OPTIONS, AK_APPROVAL_OPTIONS } from '../lib/constants';
 import { useAuth } from '../hooks/useAuth';
-import { activityLogService } from '../services/activityLog';
+import LoadingSpinner from '../components/LoadingSpinner';
 
 const EditPaymentPage = () => {
   const navigate = useNavigate();
@@ -94,7 +94,16 @@ const EditPaymentPage = () => {
     return <div className="text-center">Student not found. <Link to="/students" className="text-primary">Go back</Link></div>;
   }
 
-  if (loading) return <div className="p-6">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mb-4" />
+          <p className="text-gray-custom-500">Loading payment data...</p>
+        </div>
+      </div>
+    );
+  }
   if (!payment) return (
     <div className="rounded-lg bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between mb-4">
@@ -113,7 +122,7 @@ const EditPaymentPage = () => {
       <p className="text-gray-custom-600 mb-8">Payment ID: <span className="font-semibold text-gray-custom-800">{payment.id}</span></p>
 
       <form
-        className="mx-auto max-w-3xl grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6"
+        className="mx-auto max-w-7xl"
         onSubmit={async (e) => {
           e.preventDefault();
           const form = e.currentTarget;
@@ -136,20 +145,17 @@ const EditPaymentPage = () => {
               amount,
               payment_recieved_in: receivedIn || undefined,
               ak_approval: isAdmin ? (aksApproval || undefined) : undefined,
-              remarks: remarks || undefined,
+              remarks: remarks !== undefined ? remarks : undefined,
               purpose: purpose || undefined,
               installment_number: installmentNumber,
             };
             if (isInstallment) {
               // Send both snake_case variants to be compatible with differing backends
-              body.ak_remarks = isAdmin ? (akRemarks ?? undefined) : undefined;
-              body.accounting_remarks = accountingRemarks ?? undefined;
-              body.installment_remarks = applicationRemark ?? undefined;
+              body.ak_remarks = isAdmin ? (akRemarks !== undefined ? akRemarks : undefined) : undefined;
+              body.accounting_remarks = accountingRemarks !== undefined ? accountingRemarks : undefined;
+              body.installment_remarks = applicationRemark !== undefined ? applicationRemark : undefined;
             }
             await paymentsService.update(payment.id, body);
-            if (location.state?.activityId) {
-              try { await activityLogService.markRead(location.state.activityId); } catch {}
-            }
             // Redirect back to Updates page if we came from there, otherwise go to student page
             if (location.state?.fromUpdates) {
               navigate('/updates');
@@ -161,75 +167,83 @@ const EditPaymentPage = () => {
           }
         }}
       >
-        <div className="sm:col-span-3">
-          <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
-          <input defaultValue={payment.installment_date?.slice(0,10)} type="date" id="date" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-
-        <div className="sm:col-span-3">
-          <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
-          <input defaultValue={payment.amount} type="number" id="amount" step="0.01" required className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-
-        <div className="sm:col-span-3">
-          <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
-          <select id="receivedIn" defaultValue={payment.payment_recieved_in || ''} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-            <option value="">Select</option>
-            {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </div>
-
-        <div className="sm:col-span-3">
-          <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
-          <select id="purpose" defaultValue={payment.purpose || ''} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
-            <option value="">Select</option>
-            {PAYMENT_PURPOSES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </div>
-
-        <div className="sm:col-span-3">
-          <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
-          <select id="aksApproval" defaultValue={isAdmin ? (payment.ak_approval || 'No') : (payment.ak_approval || 'No')} disabled={!isAdmin} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
-            <option value="">Select</option>
-            {AK_APPROVAL_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-          </select>
-        </div>
-
-        <div className="sm:col-span-3">
-          <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
-          <input defaultValue={payment.installment_number || ''} type="number" id="installmentNumber" min={1} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
-        </div>
-
-        <div className="sm:col-span-6">
-          <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
-          <textarea id="remarks" defaultValue={payment.remarks || ''} rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-        </div>
-
-        {isInstallment && (
-          <>
-            <div className="sm:col-span-6">
-              <label htmlFor="akRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
-              <textarea
-                id="akRemarks"
-                defaultValue={payment.ak_remarks || ''}
-                rows={3}
-                disabled={!isAdmin}
-                className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
-                placeholder={!isAdmin ? "Only admins can edit AK's remarks" : undefined}
-              ></textarea>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          {/* Left Column */}
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="date" className="block text-sm font-medium leading-6 text-gray-custom-900">Date</label>
+              <input defaultValue={payment.installment_date?.slice(0,10)} type="date" id="date" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
             </div>
-            <div className="sm:col-span-6">
-              <label htmlFor="applicationRemark" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remark</label>
-              <textarea id="applicationRemark" defaultValue={(payment as any).installment_remarks || ''} rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-            </div>
-            <div className="sm:col-span-6">
-              <label htmlFor="accountingRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Accounting Remarks</label>
-              <textarea id="accountingRemarks" defaultValue={payment.accounting_remarks || ''} rows={3} className="mt-2 block w-full rounded-md border-0 py-2.5 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-            </div>
-          </>
-        )}
 
-        <div className="sm:col-span-6 mt-4 flex items-center justify-end gap-x-4 border-t border-gray-900/10 pt-6">
+            <div>
+              <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
+              <input defaultValue={payment.amount} type="number" id="amount" step="0.01" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+
+            <div>
+              <label htmlFor="receivedIn" className="block text-sm font-medium leading-6 text-gray-custom-900">Payment Received In</label>
+              <select id="receivedIn" defaultValue={payment.payment_recieved_in || ''} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                <option value="">Select</option>
+                {PAYMENT_RECEIVED_IN_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
+              <select id="purpose" defaultValue={payment.purpose || ''} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary">
+                <option value="">Select</option>
+                {PAYMENT_PURPOSES.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="aksApproval" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Approval</label>
+              <select id="aksApproval" defaultValue={isAdmin ? (payment.ak_approval || 'No') : (payment.ak_approval || 'No')} disabled={!isAdmin} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed">
+                <option value="">Select</option>
+                {AK_APPROVAL_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="installmentNumber" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Number</label>
+              <input defaultValue={payment.installment_number || ''} type="number" id="installmentNumber" min={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="remarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Remarks</label>
+              <textarea id="remarks" defaultValue={payment.remarks || ''} rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+            </div>
+
+            {isInstallment && (
+              <>
+                <div>
+                  <label htmlFor="akRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">AK's Remarks</label>
+                  <textarea
+                    id="akRemarks"
+                    defaultValue={payment.ak_remarks || ''}
+                    rows={1}
+                    disabled={!isAdmin}
+                    className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder={!isAdmin ? "Only admins can edit AK's remarks" : undefined}
+                  ></textarea>
+                </div>
+                <div>
+                  <label htmlFor="applicationRemark" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remark</label>
+                  <textarea id="applicationRemark" defaultValue={(payment as any).installment_remarks || ''} rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+                </div>
+                <div>
+                  <label htmlFor="accountingRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Accounting Remarks</label>
+                  <textarea id="accountingRemarks" defaultValue={payment.accounting_remarks || ''} rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-x-4 border-t border-gray-900/10 pt-4">
           <button type="button" onClick={() => {
             // Redirect back to Updates page if we came from there, otherwise go to student page
             if (location.state?.fromUpdates) {

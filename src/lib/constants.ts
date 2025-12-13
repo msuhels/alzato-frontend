@@ -1,19 +1,7 @@
 export const STUDENT_CATEGORIES = [
-  'Direct',
-  'B2B Indore',
-  'B2B ROI',
-  'B2B Referral',
-  'B2B South',
-  'B2B ROI (Old)',
-  'Multi-Country',
-  'B2B North Exclusive',
-  'Direct 34',
-  'Referral 5-5-5',
-  'Referral 7-7-7',
-  'Referral 50%',
-  'Franchisee',
-  'MCT 70%',
-  'MCT 80%',
+  'B2B',
+  'B2C',
+  'Franchise',
 ];
 
 export const ZONES = [
@@ -22,8 +10,6 @@ export const ZONES = [
   'South',
   'Franchisee',
   'IDT',
-  'MCT',
-  'Polimi Paid',
 ];
 
 export const PAYMENT_DEPARTMENTS = [
@@ -108,7 +94,9 @@ export const ASSOCIATE_WISE_INSTALLMENTS = [
 export const AK_APPROVAL_OPTIONS = ['Completed', 'No', 'Partial', 'Suspense'] as const;
 
 export const PAYMENT_PURPOSES = [
-  'Enrolment fees',
+  'Admission fees',
+  'Scholarship fees',
+  'Visa fees',
 ];
 
 export const PAYMENT_RECEIVED_IN_OPTIONS = [
