@@ -70,6 +70,7 @@ const StudentsPage = () => {
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const barScrollRef = useRef<HTMLDivElement>(null);
   const [scrollWidth, setScrollWidth] = useState(3600);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   const downloadBlob = (blob: Blob, fallbackName: string) => {
     const url = URL.createObjectURL(blob);
@@ -356,16 +357,21 @@ const StudentsPage = () => {
 
   const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
   const baseColumns = showBulkUi ? (user?.role === 'user' ? 8 : 9) : (user?.role === 'user' ? 7 : 8);
-  const paymentColumns = 4 * 10; // 4 installments * 10 fields each (TOTAL AMOUNT, INSTALLMENT DATE, AMOUNT 1, AMOUNT 2, Received In, AK Approval, Remarks, Installment Remarks, Accounting Remarks, AK Remarks)
+  const paymentColumns = 4 * 11; // 4 installments * 11 fields each (TOTAL AMOUNT, AMOUNT 1, AMOUNT 1 DATE, AMOUNT 2, AMOUNT 2 DATE, Received In, AK Approval, Remarks, Installment Remarks, Accounting Remarks, AK Remarks)
   const skeletonColumns = baseColumns + paymentColumns;
   const paymentHeaderClass = "px-3 py-1.5 text-xs font-semibold text-gray-custom-600 text-center whitespace-nowrap min-w-[150px]";
   const paymentCellClass = "px-3 py-2 text-gray-custom-600 text-center whitespace-nowrap min-w-[150px]";
-  const nameStickyHeaderClass = showBulkUi
-    ? "sticky left-[52px] z-20 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.04)]"
-    : "sticky left-0 z-20 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.04)]";
-  const nameStickyCellClass = showBulkUi
-    ? "sticky left-[52px] z-5 bg-white"
-    : "sticky left-0 z-5 bg-white";
+  // Unfreeze student name column on screens smaller than 9.5 inches (viewport width < 1024px)
+  const nameStickyHeaderClass = isSmallScreen
+    ? "px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none"
+    : (showBulkUi
+      ? "sticky left-[52px] z-20 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.04)]"
+      : "sticky left-0 z-20 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.04)]");
+  const nameStickyCellClass = isSmallScreen
+    ? "p-4 min-w-[220px] whitespace-nowrap"
+    : (showBulkUi
+      ? "sticky left-[52px] z-5 bg-white"
+      : "sticky left-0 z-5 bg-white");
 
   useEffect(() => {
     const updateScrollWidth = () => {
@@ -376,6 +382,19 @@ const StudentsPage = () => {
     window.addEventListener('resize', updateScrollWidth);
     return () => window.removeEventListener('resize', updateScrollWidth);
   }, [allStudents, columnFilters, sortBy, sortDir, paymentsByStudent, loading]);
+
+  // Detect screen size - unfreeze column on screens smaller than 9.5 inches (viewport width < 1024px)
+  useEffect(() => {
+    const checkScreenSize = () => {
+      // 9.5 inch screens typically have viewport width around 768px (portrait) or 1024px (landscape)
+      // Using 1024px as threshold to detect screens smaller than 9.5 inches
+      setIsSmallScreen(window.innerWidth < 1024);
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const syncHorizontalScroll = (from: 'table' | 'bar') => {
     const source = from === 'table' ? tableScrollRef.current : barScrollRef.current;
@@ -427,8 +446,9 @@ const StudentsPage = () => {
     // Calculate total amount
     const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
     
-    // Get latest date (first in sorted array)
-    const latestDate = payments[0]?.installment_date;
+    // Get dates for AMOUNT 1 and AMOUNT 2
+    const amount1Date = payments[0]?.installment_date;
+    const amount2Date = payments[1]?.installment_date;
     
     // Get amounts (AMOUNT 1, AMOUNT 2)
     const amount1 = payments[0]?.amount || 0;
@@ -455,9 +475,10 @@ const StudentsPage = () => {
 
     return {
       totalAmount,
-      latestDate,
       amount1,
       amount2,
+      amount1Date,
+      amount2Date,
       receivedIn: latest?.payment_recieved_in || '',
       akApproval,
       remarks,
@@ -679,7 +700,7 @@ const StudentsPage = () => {
                         enableOptions={false}
                       />
                     </th>
-                    <th rowSpan={2} className={`px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none ${nameStickyHeaderClass}`}>
+                    <th rowSpan={2} className={nameStickyHeaderClass}>
                       <ColumnFilterMenu
                         label="STUDENT NAME"
                         options={columnOptions.name}
@@ -750,7 +771,7 @@ const StudentsPage = () => {
                       />
                     </th>
                     {[1,2,3,4].map((n) => (
-                      <th key={`installment-header-${n}`} colSpan={10} className={`px-3 py-1.5 text-xs font-bold text-gray-custom-700 text-center bg-gray-custom-100 border-l-2 ${n === 1 ? 'border-gray-custom-400' : 'border-gray-custom-300'}`}>
+                      <th key={`installment-header-${n}`} colSpan={11} className={`px-3 py-1.5 text-xs font-bold text-gray-custom-700 text-center bg-gray-custom-100 border-l-2 ${n === 1 ? 'border-gray-custom-400' : 'border-gray-custom-300'}`}>
                         INSTALLMENT {n}
                       </th>
                     ))}
@@ -763,24 +784,14 @@ const StudentsPage = () => {
                   <tr className="border-b border-gray-custom-200 bg-white">
                     {[1,2,3,4].flatMap((n) => ([
                       <th key={`total-amount-${n}`} className={`${paymentHeaderClass} ${n === 1 ? 'border-l-2 border-gray-custom-400' : 'border-l border-gray-custom-300'}`}>
-                        TOTAL AMOUNT
+                        Total Amount
                       </th>,
-                      <th key={`date-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="INSTALLMENT DATE"
-                          options={columnOptions[`date_${n}`] || []}
-                          selectedValues={columnFilters[`date_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`date_${n}`, values)}
-                          onSort={(dir) => handleSort(`date_${n}`, dir)}
-                          sortDir={sortBy === `date_${n}` ? sortDir : null}
-                          enableOptions={false}
-                          isDate
-                          rangeType="date"
-                        />
+                      <th key={`amount1-date-${n}`} className={paymentHeaderClass}>
+                        1st Amount Date
                       </th>,
                       <th key={`amount1-${n}`} className={paymentHeaderClass}>
                         <ColumnFilterMenu
-                          label="AMOUNT 1"
+                          label="1st Amount"
                           options={columnOptions[`amt1_${n}`] || []}
                           selectedValues={columnFilters[`amt1_${n}`] || []}
                           onApply={(values) => handleColumnFilterChange(`amt1_${n}`, values)}
@@ -790,9 +801,12 @@ const StudentsPage = () => {
                           rangeType="number"
                         />
                       </th>,
+                      <th key={`amount2-date-${n}`} className={paymentHeaderClass}>
+                        2nd Amount Date
+                      </th>,
                       <th key={`amount2-${n}`} className={paymentHeaderClass}>
                         <ColumnFilterMenu
-                          label="AMOUNT 2"
+                          label="2nd Amount"
                           options={columnOptions[`amt2_${n}`] || []}
                           selectedValues={columnFilters[`amt2_${n}`] || []}
                           onApply={(values) => handleColumnFilterChange(`amt2_${n}`, values)}
@@ -904,7 +918,7 @@ const StudentsPage = () => {
                       )}
                       <td className="p-4 text-gray-custom-600 font-mono">{student.enrollment_number || '-'}</td>
                       <td 
-                        className={`p-4 min-w-[220px] whitespace-nowrap ${nameStickyCellClass} cursor-pointer hover:bg-gray-custom-100`}
+                        className={`${nameStickyCellClass} cursor-pointer hover:bg-gray-custom-100`}
                         onClick={() => navigate(`/students/${student.id}`)}
                       >
                         <div className="flex items-center gap-3">
@@ -927,8 +941,9 @@ const StudentsPage = () => {
                         if (!instData) {
                           return [
                             <td key={`total-${student.id}-${instNum}`} className={`${paymentCellClass} ${borderClass}`}>-</td>,
-                            <td key={`date-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt1-date-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
                             <td key={`amt1-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt2-date-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
                             <td key={`amt2-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
                             <td key={`recv-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
                             <td key={`ak-approval-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
@@ -943,11 +958,14 @@ const StudentsPage = () => {
                           <td key={`total-${student.id}-${instNum}`} className={`${paymentCellClass} ${borderClass}`}>
                             {formatCurrency(instData.totalAmount)}
                           </td>,
-                          <td key={`date-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {formatDateDisplay(instData.latestDate)}
+                          <td key={`amt1-date-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {formatDateDisplay(instData.amount1Date)}
                           </td>,
                           <td key={`amt1-${student.id}-${instNum}`} className={paymentCellClass}>
                             {instData.amount1 > 0 ? formatCurrency(instData.amount1) : '-'}
+                          </td>,
+                          <td key={`amt2-date-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {formatDateDisplay(instData.amount2Date)}
                           </td>,
                           <td key={`amt2-${student.id}-${instNum}`} className={paymentCellClass}>
                             {instData.amount2 > 0 ? formatCurrency(instData.amount2) : '-'}
