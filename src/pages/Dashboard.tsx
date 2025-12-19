@@ -37,14 +37,14 @@ const DashboardPage = () => {
     }, []);
 
     // Aggregate revenue from students table
+    // Note: Amounts are stored in thousands, so multiply by 1000 for display
     const totalReceived = useMemo(() => {
-        return students.reduce((sum, s) => sum + (s.recieved_amount ?? s.received_amount ?? 0), 0);
+        return students.reduce((sum, s) => sum + (s.recieved_amount ?? s.received_amount ?? 0), 0) * 1000;
     }, [students]);
     const totalNetRevenue = useMemo(() => {
-        const explicitNet = students.reduce((sum, s) => sum + (s.net_amount ?? 0), 0);
-        // If net_amount exists on rows, prefer that; otherwise fall back to received
-        return explicitNet > 0 ? explicitNet : totalReceived;
-    }, [students, totalReceived]);
+        // Use received_amount (total revenue received) instead of net_amount (remaining to be paid)
+        return totalReceived;
+    }, [totalReceived]);
 
     const totalStudents = useMemo(() => students.length, [students]);
 
@@ -67,11 +67,11 @@ const DashboardPage = () => {
         }),
         [students, currentYear]
     );
-    const receivedAmountThisYear = useMemo(() => studentsThisYear.reduce((sum, s) => sum + (s.recieved_amount ?? s.received_amount ?? 0), 0), [studentsThisYear]);
+    const receivedAmountThisYear = useMemo(() => studentsThisYear.reduce((sum, s) => sum + (s.recieved_amount ?? s.received_amount ?? 0), 0) * 1000, [studentsThisYear]);
     const netRevenueThisYear = useMemo(() => {
-        const explicitNet = studentsThisYear.reduce((sum, s) => sum + (s.net_amount ?? 0), 0);
-        return explicitNet > 0 ? explicitNet : receivedAmountThisYear;
-    }, [studentsThisYear, receivedAmountThisYear]);
+        // Use received_amount (total revenue received) instead of net_amount (remaining to be paid)
+        return receivedAmountThisYear;
+    }, [receivedAmountThisYear]);
 
     const paymentsThisMonthAll = useMemo(
         () => payments.filter(p => {
@@ -80,7 +80,7 @@ const DashboardPage = () => {
         }),
         [payments, startOfMonth, nextMonthStart]
     );
-    const receivedAmountThisMonth = useMemo(() => paymentsThisMonthAll.reduce((sum, p) => sum + (p.amount || 0), 0), [paymentsThisMonthAll]);
+    const receivedAmountThisMonth = useMemo(() => paymentsThisMonthAll.reduce((sum, p) => sum + (p.amount || 0), 0) * 1000, [paymentsThisMonthAll]);
     const netRevenueThisMonth = useMemo(() => receivedAmountThisMonth, [receivedAmountThisMonth]);
 
     // Previous month period
@@ -92,7 +92,7 @@ const DashboardPage = () => {
         }),
         [payments, prevMonthStart, startOfMonth]
     );
-    const prevReceivedAmount = useMemo(() => prevMonthPayments.reduce((s, p) => s + (p.amount || 0), 0), [prevMonthPayments]);
+    const prevReceivedAmount = useMemo(() => prevMonthPayments.reduce((s, p) => s + (p.amount || 0), 0) * 1000, [prevMonthPayments]);
     const prevNetRevenue = useMemo(() => prevReceivedAmount, [prevReceivedAmount]);
 
     // Net revenue this month vs last month percent
@@ -133,7 +133,7 @@ const DashboardPage = () => {
     const recentPayments = useMemo(() => payments.slice(0, 5).map(p => ({
         id: String(p.id),
         studentId: String(p.student_id),
-        amount: p.amount,
+        amount: (p.amount || 0) * 1000, // Convert from thousands to actual amount
         date: p.installment_date,
         payment_type: p.payment_type,
     })), [payments]);
@@ -226,7 +226,7 @@ const DashboardPage = () => {
                 <div className="md:col-span-1 lg:col-span-2 rounded-xl bg-white/90 backdrop-blur p-6 shadow-sm ring-1 ring-gray-200">
                     <h2 className="text-lg font-semibold text-gray-custom-900 mb-4">This Year Monthly Revenue</h2>
                     <YearlyRevenueChart 
-                        payments={receivedPaymentsForChart.map(p => ({ date: p.installment_date, amount: p.amount }))}
+                        payments={receivedPaymentsForChart.map(p => ({ date: p.installment_date, amount: (p.amount || 0) * 1000 }))}
                         payouts={[]}
                         onMonthSelect={(m) => setSelectedMonthStart(m)}
                     />
@@ -241,7 +241,7 @@ const DashboardPage = () => {
                 <div className="md:col-span-1 lg:col-span-2 rounded-xl bg-white/90 backdrop-blur p-6 shadow-sm ring-1 ring-gray-200">
                     <h2 className="text-lg font-semibold text-gray-custom-900 mb-4">5 Years Revenue (Previous 2 to Next 2)</h2>
                     <FourYearRevenueChart 
-                        payments={receivedPaymentsForChart.map(p => ({ date: p.installment_date, amount: p.amount }))}
+                        payments={receivedPaymentsForChart.map(p => ({ date: p.installment_date, amount: (p.amount || 0) * 1000 }))}
                         payouts={[]}
                         onYearSelect={(y) => setSelectedYear(y)}
                     />

@@ -43,7 +43,8 @@ const RevenueByZonePieChart = ({ payments, studentMap, monthStart, year }: Reven
       const student = studentMap.get(String(p.student_id));
       const zone = (student?.zone || 'Unknown').trim() || 'Unknown';
       const isPayout = (p.payment_type || '').toLowerCase() === 'payout';
-      const amt = Number(p.amount) || 0;
+      // Amounts are stored in thousands, multiply by 1000 for display
+      const amt = (Number(p.amount) || 0) * 1000;
       if (isPayout) {
         byZonePayout[zone] = (byZonePayout[zone] || 0) + amt;
       } else {

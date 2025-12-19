@@ -51,22 +51,21 @@ const AddStudentPage = () => {
     if (trimmed === '' || validateInstallmentPattern(trimmed)) {
       setInstallmentError('');
 
-      // Auto-calculate total amount (in rupees) from installments in thousands
+      // Auto-calculate total amount from installments
       if (trimmed === '') {
         setTotalAmount('');
       } else {
         const parts = trimmed.split('-').map(part => Number(part));
         const validParts = parts.filter(part => !Number.isNaN(part));
         if (validParts.length > 0) {
-          const sumThousands = validParts.reduce((acc, curr) => acc + curr, 0);
-          const totalInRupees = Math.round(sumThousands * 1000); // convert thousands to rupees
-          setTotalAmount(totalInRupees);
+          const total = validParts.reduce((acc, curr) => acc + curr, 0);
+          setTotalAmount(Math.round(total * 100) / 100); // round to 2 decimal places
         } else {
           setTotalAmount('');
         }
       }
     } else {
-      setInstallmentError('Invalid format. Use numbers in thousands, decimals, and dashes only (e.g., 100-50-30.5 or 105.7-47.3)');
+      setInstallmentError('Invalid format. Use numbers, decimals, and dashes only (e.g., 100-50-30.5 or 105.7-47.3)');
     }
   };
 
@@ -88,7 +87,7 @@ const AddStudentPage = () => {
     
     // Validate installment pattern before submission
     if (associateWiseInstallments && !validateInstallmentPattern(associateWiseInstallments)) {
-      setInstallmentError('Invalid format. Use numbers in thousands, decimals, and dashes only (e.g., 100-50-30.5 or 105.7-47.3)');
+      setInstallmentError('Invalid format. Use numbers, decimals, and dashes only (e.g., 100-50-30.5 or 105.7-47.3)');
       return;
     }
     
@@ -226,7 +225,7 @@ const AddStudentPage = () => {
                       ? 'ring-red-300 focus:ring-red-500' 
                       : 'ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary'
                   } placeholder:text-gray-custom-400 sm:text-sm sm:leading-6`}
-                  placeholder="Type or select a pattern (e.g., 100-50-30.5)"
+                  placeholder="Type or select a pattern (e.g., 20-25-35) - amounts in thousands"
                 />
                 <datalist id="associateInstallmentOptions">
                   {ASSOCIATE_WISE_INSTALLMENTS.map(v => <option key={v} value={v} />)}
@@ -238,7 +237,7 @@ const AddStudentPage = () => {
                   <div className="mb-2">
                     <p className="text-xs font-semibold text-gray-custom-800 mb-1">How to enter installments</p>
                     <ul className="text-xs text-gray-custom-600 space-y-0.5 ml-4 list-disc">
-                      <li>Enter amounts in thousands only</li>
+                      <li>Enter amounts in thousands (e.g., 20 = ₹20,000)</li>
                       <li>Use a dash ( - ) to separate installments</li>
                       <li>The sum of all installments must equal the total amount</li>
                     </ul>
@@ -247,10 +246,11 @@ const AddStudentPage = () => {
                   <div className="mb-2">
                     <p className="text-xs font-semibold text-gray-custom-800 mb-1">Examples</p>
                     <div className="text-xs text-gray-custom-600 space-y-0.5">
-                      <p><span className="font-medium">100</span> → ₹1,00,000</p>
-                      <p><span className="font-medium">50-30-20</span> → ₹50,000 + ₹30,000 + ₹20,000</p>
-                      <p><span className="font-medium">100-50-30.5</span> → ₹1,00,000 + ₹50,000 + ₹30,500</p>
-                      <p><span className="font-medium">47.3-33.3</span> → ₹47,300 + ₹33,300</p>
+                      <p><span className="font-medium">100</span> → ₹1,00,000 (100 thousands)</p>
+                      <p><span className="font-medium">50-30-20</span> → ₹50,000 + ₹30,000 + ₹20,000 (Total: 100)</p>
+                      <p><span className="font-medium">20-25-35</span> → ₹20,000 + ₹25,000 + ₹35,000 (Total: 80)</p>
+                      <p><span className="font-medium">100-50-30.5</span> → ₹1,00,000 + ₹50,000 + ₹30,500 (Total: 180.5)</p>
+                      <p><span className="font-medium">47.3-33.3</span> → ₹47,300 + ₹33,300 (Total: 80.6)</p>
                     </div>
                   </div>
 
@@ -260,6 +260,7 @@ const AddStudentPage = () => {
                       <li>Decimals are allowed (e.g., 30.5 = ₹30,500)</li>
                       <li>Do not enter commas or currency symbols</li>
                       <li>Installments should be entered in order</li>
+                      <li>All amounts are in thousands</li>
                     </ul>
                   </div>
                 </div>
@@ -267,7 +268,7 @@ const AddStudentPage = () => {
             </div>
 
             <div>
-              <label htmlFor="totalAmount" className="block text-sm font-medium leading-6 text-gray-custom-900">Total Amount</label>
+              <label htmlFor="totalAmount" className="block text-sm font-medium leading-6 text-gray-custom-900">Total Amount (in thousands)</label>
               <div className="mt-1.5">
                 <input 
                   type="number" 
@@ -277,8 +278,14 @@ const AddStudentPage = () => {
                   min="0" 
                   value={totalAmount === '' ? '' : totalAmount} 
                   onChange={handleTotalAmountChange}
+                  placeholder="e.g., 80 (represents ₹80,000)"
                   className="block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" 
                 />
+                {totalAmount !== '' && (
+                  <p className="mt-1 text-xs text-gray-custom-600">
+                    = ₹{(Number(totalAmount) * 1000).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  </p>
+                )}
               </div>
             </div>
           </div>

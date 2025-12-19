@@ -90,9 +90,9 @@ export const addInstallmentNumbers = <T extends { payment_type?: string }>(
 };
 
 /**
- * Parse associate_wise_installments string into array of installment amounts in rupees
- * @param installmentsStr - String like "25-35-40" (in thousands)
- * @returns Array of installment amounts in rupees
+ * Parse associate_wise_installments string into array of installment amounts
+ * @param installmentsStr - String like "15-25-40" (short form)
+ * @returns Array of installment amounts
  */
 export const parseInstallmentStructure = (installmentsStr: string | undefined): number[] => {
   if (!installmentsStr || typeof installmentsStr !== 'string') {
@@ -102,8 +102,8 @@ export const parseInstallmentStructure = (installmentsStr: string | undefined): 
     const num = Number(part.trim());
     return Number.isNaN(num) ? 0 : num;
   });
-  // Convert from thousands to rupees (multiply by 1000)
-  return parts.filter(p => p > 0).map(p => Math.round(p * 1000));
+  // Return as-is (no conversion)
+  return parts.filter(p => p > 0).map(p => p);
 };
 
 /**

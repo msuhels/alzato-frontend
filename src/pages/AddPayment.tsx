@@ -4,7 +4,7 @@ import { studentsService, StudentListItem } from '../services/students';
 import { paymentsService, PaymentListItem } from '../services/payments';
 import { PAYMENT_PURPOSES, PAYMENT_RECEIVED_IN_OPTIONS, AK_APPROVAL_OPTIONS, PAYMENT_DEPARTMENTS } from '../lib/constants';
 import { getNextInstallmentNumber, parseInstallmentStructure, calculateInstallmentProgress, calculateWaterfallPreview } from '../lib/dateUtils';
-import { ArrowLeft, Building, FileText } from 'lucide-react';
+import { Building, FileText } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 const AddPaymentPage = () => {
@@ -58,7 +58,7 @@ const AddPaymentPage = () => {
     // For Installment payments, always use waterfall distribution
     // For Other payments, use standard mode
     if (department === 'Installment') {
-      // Get amount from the amount field
+      // Get amount from the amount field (short form, no conversion)
       const amountInput = form.querySelector('#amount') as HTMLInputElement | null;
       const amount = amountInput ? parseFloat(amountInput.value) : 0;
       
@@ -108,6 +108,13 @@ const AddPaymentPage = () => {
     // Standard mode for Other payments
     const amountInput = form.querySelector('#amount') as HTMLInputElement | null;
     const amount = amountInput ? parseFloat(amountInput.value) : 0;
+    
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount');
+      setIsSubmitting(false);
+      return;
+    }
+    
     const userInstallmentNumberStr = (form.querySelector('#installmentNumber') as HTMLInputElement | null)?.value;
     const userInstallmentNumber = userInstallmentNumberStr ? parseInt(userInstallmentNumberStr, 10) : undefined;
     const installmentNumber = userInstallmentNumber ?? (paymentType ? getNextInstallmentNumber(existingPayments, paymentType) : undefined);
@@ -137,6 +144,7 @@ const AddPaymentPage = () => {
 
   // Calculate waterfall preview for Installment payments
   // Show preview when amount is entered in the amount field
+  // All amounts are in short form (no conversion)
   const waterfallPreview = React.useMemo(() => {
     if (department !== 'Installment' || !studentData?.associate_wise_installments) {
       return null;
@@ -263,8 +271,9 @@ const AccountingForm = ({
   setInstallmentPurposes: (purposes: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   onMainPurposeChange?: (purpose: string) => void;
 }) => {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount);
+  // Format number for display (short form, no currency conversion)
+  const formatAmount = (amount: number) => {
+    return amount.toFixed(amount % 1 === 0 ? 0 : 2);
   };
 
   return (
@@ -291,7 +300,7 @@ const AccountingForm = ({
                 step="0.01" 
                 required 
                 className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" 
-                placeholder="Enter payment amount"
+                placeholder="e.g., 45"
                 onChange={(e) => {
                   // Update depositAmount for preview calculation
                   setDepositAmount(e.target.value);
@@ -383,10 +392,10 @@ const AccountingForm = ({
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex-1">
                       <span className="text-sm font-semibold text-gray-custom-900">
-                        Installment {item.installmentNumber}: {formatCurrency(item.amount)}
+                        Installment {item.installmentNumber}: {formatAmount(item.amount)}
                       </span>
                       <span className="text-xs text-gray-custom-500 ml-2">
-                        ({formatCurrency(item.alreadyPaid)} / {formatCurrency(item.target)})
+                        ({formatAmount(item.alreadyPaid)} / {formatAmount(item.target)})
                       </span>
                     </div>
                   </div>
@@ -422,7 +431,7 @@ const AccountingForm = ({
               <div className="flex justify-between items-center font-semibold">
                 <span className="text-gray-custom-900">Total Distributed:</span>
                 <span className="text-gray-custom-900">
-                  {formatCurrency(waterfallPreview.reduce((sum, item) => sum + item.amount, 0))}
+                  {formatAmount(waterfallPreview.reduce((sum, item) => sum + item.amount, 0))}
                 </span>
               </div>
             </div>
@@ -445,7 +454,14 @@ const SharedForm = ({ isAdmin }: { isAdmin: boolean }) => (
             </div>
             <div>
                 <label htmlFor="amount" className="block text-sm font-medium leading-6 text-gray-custom-900">Amount</label>
-                <input type="number" id="amount" step="0.01" required className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" />
+                <input 
+                  type="number" 
+                  id="amount" 
+                  step="0.01" 
+                  required 
+                  placeholder="e.g., 45"
+                  className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary" 
+                />
             </div>
             <div>
                 <label htmlFor="purpose" className="block text-sm font-medium leading-6 text-gray-custom-900">Purpose</label>
