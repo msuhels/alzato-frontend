@@ -9,9 +9,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "lint:dualite": "eslint --config eslint.dualite.config.js .",
-    "tsc:dualite": "yarn tsc -p tsconfig.dualite.json",
+    "tsc:dualite": "tsc -p tsconfig.dualite.json",
     "preview": "vite preview",
-    "postinstall": "npm rebuild rollup || true"
+    "postinstall": "npm rebuild rollup"
   },
   "dependencies": {
     "@faker-js/faker": "^10.0.0",
@@ -43,5 +43,9 @@
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.32.1",
     "vite": "^6.3.5"
+  },
+  "engines": {
+    "node": ">=18.0.0 <23.0.0",
+    "npm": ">=9.0.0"
   }
 }
