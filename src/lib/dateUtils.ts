@@ -88,3 +88,92 @@ export const addInstallmentNumbers = <T extends { payment_type?: string }>(
     };
   });
 };
+
+/**
+ * Parse associate_wise_installments string into array of installment amounts in rupees
+ * @param installmentsStr - String like "25-35-40" (in thousands)
+ * @returns Array of installment amounts in rupees
+ */
+export const parseInstallmentStructure = (installmentsStr: string | undefined): number[] => {
+  if (!installmentsStr || typeof installmentsStr !== 'string') {
+    return [];
+  }
+  const parts = installmentsStr.split('-').map(part => {
+    const num = Number(part.trim());
+    return Number.isNaN(num) ? 0 : num;
+  });
+  // Convert from thousands to rupees (multiply by 1000)
+  return parts.filter(p => p > 0).map(p => Math.round(p * 1000));
+};
+
+/**
+ * Calculate current progress per installment from existing payments
+ * @param existingPayments - Array of payment records
+ * @returns Map of installment_number -> total paid amount
+ */
+export const calculateInstallmentProgress = (
+  existingPayments: Array<{ installment_number?: number; amount?: number }>
+): Record<number, number> => {
+  const progress: Record<number, number> = {};
+  for (const payment of existingPayments || []) {
+    const instNum = Number(payment.installment_number);
+    if (Number.isInteger(instNum) && instNum > 0) {
+      const amount = Number(payment.amount) || 0;
+      progress[instNum] = (progress[instNum] || 0) + amount;
+    }
+  }
+  return progress;
+};
+
+/**
+ * Calculate waterfall distribution preview
+ * @param depositAmount - Total deposit amount
+ * @param installmentTargets - Array of target amounts per installment
+ * @param existingProgress - Current progress per installment
+ * @returns Array of distribution records
+ */
+export const calculateWaterfallPreview = (
+  depositAmount: number,
+  installmentTargets: number[],
+  existingProgress: Record<number, number>,
+  existingPayments: Array<{ installment_number?: number }>
+): Array<{ installmentNumber: number; amount: number; target: number; alreadyPaid: number }> => {
+  const distribution: Array<{ installmentNumber: number; amount: number; target: number; alreadyPaid: number }> = [];
+  let remaining = depositAmount;
+
+  for (let i = 0; i < installmentTargets.length && remaining > 0; i++) {
+    const installmentNumber = i + 1;
+    const target = installmentTargets[i];
+    const alreadyPaid = existingProgress[installmentNumber] || 0;
+    const needed = Math.max(0, target - alreadyPaid);
+
+    // Check if installment already has 2 records (max constraint)
+    const existingRecordsForInst = existingPayments.filter(
+      p => Number(p.installment_number) === installmentNumber
+    );
+    
+    if (needed <= 0 || existingRecordsForInst.length >= 2) {
+      continue;
+    }
+
+    if (remaining >= needed) {
+      distribution.push({
+        installmentNumber,
+        amount: needed,
+        target,
+        alreadyPaid
+      });
+      remaining -= needed;
+    } else if (remaining > 0) {
+      distribution.push({
+        installmentNumber,
+        amount: remaining,
+        target,
+        alreadyPaid
+      });
+      remaining = 0;
+    }
+  }
+
+  return distribution;
+};

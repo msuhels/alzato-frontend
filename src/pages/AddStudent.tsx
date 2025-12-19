@@ -12,6 +12,7 @@ const AddStudentPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [associateWiseInstallments, setAssociateWiseInstallments] = useState<string>('');
   const [installmentError, setInstallmentError] = useState<string>('');
+  const [totalAmount, setTotalAmount] = useState<number | ''>('');
 
   useEffect(() => {
     const fetchEnrollmentNumber = async () => {
@@ -49,8 +50,35 @@ const AddStudentPage = () => {
     // Validate the pattern
     if (trimmed === '' || validateInstallmentPattern(trimmed)) {
       setInstallmentError('');
+
+      // Auto-calculate total amount (in rupees) from installments in thousands
+      if (trimmed === '') {
+        setTotalAmount('');
+      } else {
+        const parts = trimmed.split('-').map(part => Number(part));
+        const validParts = parts.filter(part => !Number.isNaN(part));
+        if (validParts.length > 0) {
+          const sumThousands = validParts.reduce((acc, curr) => acc + curr, 0);
+          const totalInRupees = Math.round(sumThousands * 1000); // convert thousands to rupees
+          setTotalAmount(totalInRupees);
+        } else {
+          setTotalAmount('');
+        }
+      }
     } else {
       setInstallmentError('Invalid format. Use numbers in thousands, decimals, and dashes only (e.g., 100-50-30.5 or 105.7-47.3)');
+    }
+  };
+
+  const handleTotalAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '') {
+      setTotalAmount('');
+    } else {
+      const num = Number(value);
+      if (!Number.isNaN(num)) {
+        setTotalAmount(num);
+      }
     }
   };
 
@@ -72,7 +100,6 @@ const AddStudentPage = () => {
     const category = (form.querySelector('#category') as HTMLSelectElement).value;
     const intakeYear = (form.querySelector('#intakeYear') as HTMLInputElement).value; // e.g., 2025
     const sourceOfStudent = (form.querySelector('#sourceOfStudent') as HTMLInputElement).value;
-    const totalAmountRaw = (form.querySelector('#totalAmount') as HTMLInputElement)?.value;
     try {
       await studentsService.create({ 
         name, 
@@ -83,7 +110,7 @@ const AddStudentPage = () => {
         associate_wise_installments: associateWiseInstallments || undefined,
         intake_year: intakeYear || undefined,
         enrollment_number: enrollmentNumber,
-        total_amount: totalAmountRaw ? Number(totalAmountRaw) : undefined,
+        total_amount: totalAmount === '' ? undefined : Number(totalAmount),
       });
       navigate('/students');
     } finally {
@@ -166,7 +193,7 @@ const AddStudentPage = () => {
             <div>
               <label htmlFor="intakeYear" className="block text-sm font-medium leading-6 text-gray-custom-900">Intake Year</label>
               <div className="mt-1.5">
-                <input type="number" id="intakeYear" defaultValue={new Date().getFullYear()} className="block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" />
+                <input type="number" id="intakeYear" defaultValue={2026} className="block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" />
               </div>
             </div>
           </div>
@@ -186,7 +213,7 @@ const AddStudentPage = () => {
             </div>
 
             <div>
-              <label htmlFor="associateWiseInstallments" className="block text-sm font-medium leading-6 text-gray-custom-900">Associate Wise Installments</label>
+              <label htmlFor="associateWiseInstallments" className="block text-sm font-medium leading-6 text-gray-custom-900">Package</label>
               <div className="mt-1.5">
                 <input
                   type="text"
@@ -242,7 +269,16 @@ const AddStudentPage = () => {
             <div>
               <label htmlFor="totalAmount" className="block text-sm font-medium leading-6 text-gray-custom-900">Total Amount</label>
               <div className="mt-1.5">
-                <input type="number" id="totalAmount" inputMode="decimal" step="0.01" min="0" className="block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" />
+                <input 
+                  type="number" 
+                  id="totalAmount" 
+                  inputMode="decimal" 
+                  step="0.01" 
+                  min="0" 
+                  value={totalAmount === '' ? '' : totalAmount} 
+                  onChange={handleTotalAmountChange}
+                  className="block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 placeholder:text-gray-custom-400 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6" 
+                />
               </div>
             </div>
           </div>

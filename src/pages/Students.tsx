@@ -149,6 +149,22 @@ const StudentsPage = () => {
                 }
               });
             }
+          } else if (key.match(/^(date1|date2)_(\d+)$/)) {
+            // Combine date1_${n} and date2_${n} into date_${n} for backend
+            const match = key.match(/^(date1|date2)_(\d+)$/);
+            if (match) {
+              const instNum = match[2];
+              const backendKey = `date_${instNum}`;
+              if (!columnFiltersPayload[backendKey]) {
+                columnFiltersPayload[backendKey] = [];
+              }
+              // Merge values, avoiding duplicates
+              values.forEach(v => {
+                if (!columnFiltersPayload[backendKey].includes(v)) {
+                  columnFiltersPayload[backendKey].push(v);
+                }
+              });
+            }
           } else {
             columnFiltersPayload[key] = values;
           }
@@ -260,10 +276,10 @@ const StudentsPage = () => {
       paymentSeeds[`amt1_${i}`] = [];
       paymentSeeds[`amt2_${i}`] = [];
       paymentSeeds[`date_${i}`] = [];
+      paymentSeeds[`date1_${i}`] = [];
+      paymentSeeds[`date2_${i}`] = [];
       paymentSeeds[`recv_${i}`] = PAYMENT_RECEIVED_IN_OPTIONS;
       paymentSeeds[`remarks_${i}`] = [];
-      paymentSeeds[`inst_remarks_${i}`] = [];
-      paymentSeeds[`acc_remarks_${i}`] = [];
       paymentSeeds[`ak_remarks_${i}`] = [];
       paymentSeeds[`ak_approval_${i}`] = [...AK_APPROVAL_OPTIONS];
     });
@@ -305,12 +321,18 @@ const StudentsPage = () => {
             return db - da;
           })[0]?.installment_date;
           paymentOptions[`date_${instNum}`] = [...(paymentOptions[`date_${instNum}`] || []), normalizeValue(latestDate)];
+          // For date1 (first payment date)
+          if (payments[0]) {
+            paymentOptions[`date1_${instNum}`] = [...(paymentOptions[`date1_${instNum}`] || []), normalizeValue(payments[0].installment_date)];
+          }
+          // For date2 (second payment date if exists)
+          if (payments[1]) {
+            paymentOptions[`date2_${instNum}`] = [...(paymentOptions[`date2_${instNum}`] || []), normalizeValue(payments[1].installment_date)];
+          }
           // For other fields, use latest payment values
           const latest = payments[0];
           paymentOptions[`recv_${instNum}`] = [...(paymentOptions[`recv_${instNum}`] || []), normalizeValue(latest?.payment_recieved_in)];
           paymentOptions[`remarks_${instNum}`] = [...(paymentOptions[`remarks_${instNum}`] || []), normalizeValue(latest?.remarks)];
-          paymentOptions[`inst_remarks_${instNum}`] = [...(paymentOptions[`inst_remarks_${instNum}`] || []), normalizeValue(latest?.installment_remarks)];
-          paymentOptions[`acc_remarks_${instNum}`] = [...(paymentOptions[`acc_remarks_${instNum}`] || []), normalizeValue(latest?.accounting_remarks)];
           paymentOptions[`ak_remarks_${instNum}`] = [...(paymentOptions[`ak_remarks_${instNum}`] || []), normalizeValue(latest?.ak_remarks)];
           paymentOptions[`ak_approval_${instNum}`] = [...(paymentOptions[`ak_approval_${instNum}`] || []), normalizeValue(latest?.ak_approval)];
         }
@@ -328,6 +350,7 @@ const StudentsPage = () => {
       enrollment_number: [],
       name: [],
       zone: build(ZONES, s => s.zone),
+      source_of_student: build([], s => s.source_of_student ?? ''),
       associate_wise_installments: build(ASSOCIATE_WISE_INSTALLMENTS, s => s.associate_wise_installments),
       total_amount: build(amountSeed, s => s.total_amount ?? 0),
       recieved_amount: build(amountSeed, s => s.recieved_amount ?? s.received_amount ?? 0),
@@ -356,8 +379,8 @@ const StudentsPage = () => {
   }, [columnFilters]);
 
   const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
-  const baseColumns = showBulkUi ? (user?.role === 'user' ? 8 : 9) : (user?.role === 'user' ? 7 : 8);
-  const paymentColumns = 4 * 11; // 4 installments * 11 fields each (TOTAL AMOUNT, AMOUNT 1, AMOUNT 1 DATE, AMOUNT 2, AMOUNT 2 DATE, Received In, AK Approval, Remarks, Installment Remarks, Accounting Remarks, AK Remarks)
+  const baseColumns = showBulkUi ? (user?.role === 'user' ? 9 : 10) : (user?.role === 'user' ? 8 : 9);
+  const paymentColumns = 4 * 14; // 4 installments * 14 fields each (Inst Total, Inst Pending, Amount 1 block (6 cols), Amount 2 block (6 cols))
   const skeletonColumns = baseColumns + paymentColumns;
   const paymentHeaderClass = "px-3 py-1.5 text-xs font-semibold text-gray-custom-600 text-center whitespace-nowrap min-w-[150px]";
   const paymentCellClass = "px-3 py-2 text-gray-custom-600 text-center whitespace-nowrap min-w-[150px]";
@@ -431,7 +454,8 @@ const StudentsPage = () => {
       grouped[num].sort((a, b) => {
         const da = new Date(a.installment_date).getTime();
         const db = new Date(b.installment_date).getTime();
-        return db - da; // latest first
+        // Oldest first so that AMOUNT 1 is the earlier payment, AMOUNT 2 the later one
+        return da - db;
       });
     });
     return grouped;
@@ -454,37 +478,52 @@ const StudentsPage = () => {
     const amount1 = payments[0]?.amount || 0;
     const amount2 = payments[1]?.amount || 0;
     
-    // Get latest values for other fields (use latest payment's values)
-    const latest = payments[0];
-    
-    // Use latest payment's remarks (not combined)
-    const remarks = latest?.remarks || '';
+    // Values for each payment separately (Amount 1 = payments[0], Amount 2 = payments[1] if present)
+    const p1 = payments[0];
+    const p2 = payments[1];
+
+    const amount1ReceivedIn = p1?.payment_recieved_in || '';
+    const amount2ReceivedIn = p2?.payment_recieved_in || '';
+
+    const amount1Remarks = p1?.remarks || '';
+    const amount2Remarks = p2?.remarks || '';
+
+    const amount1AkRemarks = p1?.ak_remarks || '';
+    const amount2AkRemarks = p2?.ak_remarks || '';
+
+    // Use actual stored AK approval values for each amount with no extra frontend overrides
+    const amount1AkApproval = p1?.ak_approval || '';
+    const amount2AkApproval = p2?.ak_approval || '';
+
+    // Use latest payment's other remarks where we still need per-installment context
+    const latest = payments[payments.length - 1] || payments[0];
     const instRemarks = latest?.installment_remarks || '';
     const accRemarks = latest?.accounting_remarks || '';
-    const akRemarks = latest?.ak_remarks || '';
 
-    // Compute AK approval: show "Completed" if both amounts are paid OR if amount1's approval is "Completed"
-    let akApproval = latest?.ak_approval || '';
-    if (amount1 > 0 && amount2 > 0) {
-      // Both amounts paid: always show "Completed" regardless of database value
-      akApproval = 'Completed';
-    } else if (amount1 > 0 && latest?.ak_approval === 'Completed') {
-      // Amount1 paid and approval is "Completed": show "Completed"
-      akApproval = 'Completed';
-    }
+    const pendingAmount = Math.max(0, (totalAmount || 0) - (amount1 || 0) - (amount2 || 0));
 
     return {
       totalAmount,
+      pendingAmount,
       amount1,
       amount2,
       amount1Date,
       amount2Date,
       receivedIn: latest?.payment_recieved_in || '',
-      akApproval,
-      remarks,
+      akApproval: amount1AkApproval, // keep compatibility for existing usages
+      remarks: latest?.remarks || '',
       installmentRemarks: instRemarks,
       accountingRemarks: accRemarks,
-      akRemarks,
+      akRemarks: latest?.ak_remarks || '',
+      // New per-amount fields
+      amount1ReceivedIn,
+      amount2ReceivedIn,
+      amount1Remarks,
+      amount2Remarks,
+      amount1AkRemarks,
+      amount2AkRemarks,
+      amount1AkApproval,
+      amount2AkApproval,
       payments, // Keep original payments for editing
     };
   };
@@ -667,9 +706,9 @@ const StudentsPage = () => {
             ) : (
               <table ref={tableRef} className="w-full min-w-[3600px] text-left">
                 <thead>
-                  <tr className="border-b border-gray-custom-200 bg-gray-custom-50">
+                  <tr className="border-b border-gray-custom-300 bg-gray-custom-50">
                     {showBulkUi && (
-                      <th rowSpan={2} className="px-3 py-2">
+                      <th rowSpan={3} className="px-3 py-2">
                         <input
                           type="checkbox"
                           checked={allStudents.length > 0 && allStudents.every(s => selectedIds.has(s.id))}
@@ -689,7 +728,7 @@ const StudentsPage = () => {
                         />
                       </th>
                     )}
-                    <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
                       <ColumnFilterMenu
                         label="Enrl. NO."
                         options={columnOptions.enrollment_number}
@@ -700,7 +739,7 @@ const StudentsPage = () => {
                         enableOptions={false}
                       />
                     </th>
-                    <th rowSpan={2} className={nameStickyHeaderClass}>
+                    <th rowSpan={3} className={nameStickyHeaderClass}>
                       <ColumnFilterMenu
                         label="STUDENT NAME"
                         options={columnOptions.name}
@@ -712,7 +751,7 @@ const StudentsPage = () => {
                       />
                     </th>
                     
-                    <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
                       <ColumnFilterMenu
                         label="ZONE"
                         options={columnOptions.zone}
@@ -723,9 +762,20 @@ const StudentsPage = () => {
                         enableOptions={true}
                       />
                     </th>
-                    <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
                       <ColumnFilterMenu
-                        label="ASSOCIATE WISE"
+                        label="SOURCE OF STUDENT"
+                        options={columnOptions.source_of_student}
+                        selectedValues={columnFilters.source_of_student || []}
+                        onApply={(values) => handleColumnFilterChange('source_of_student', values)}
+                        onSort={(dir) => handleSort('source_of_student', dir)}
+                        sortDir={sortBy === 'source_of_student' ? sortDir : null}
+                        enableOptions={false}
+                      />
+                    </th>
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
+                      <ColumnFilterMenu
+                        label="PACKAGE"
                         options={columnOptions.associate_wise_installments}
                         selectedValues={columnFilters.associate_wise_installments || []}
                         onApply={(values) => handleColumnFilterChange('associate_wise_installments', values)}
@@ -734,7 +784,7 @@ const StudentsPage = () => {
                         enableOptions={true}
                       />
                     </th>
-                    <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
                       <ColumnFilterMenu
                         label="TOTAL"
                         options={columnOptions.total_amount}
@@ -746,7 +796,7 @@ const StudentsPage = () => {
                       rangeType="number"
                       />
                     </th>
-                    <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none">
                       <ColumnFilterMenu
                         label="RECEIVED"
                         options={columnOptions.recieved_amount}
@@ -758,7 +808,7 @@ const StudentsPage = () => {
                         rangeType="number"
                       />
                     </th>
-                    <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none border-r-2 border-gray-custom-400">
+                    <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 select-none border-r-2 border-gray-custom-300">
                       <ColumnFilterMenu
                         label="NET PENDING"
                         options={columnOptions.net_amount}
@@ -771,23 +821,63 @@ const StudentsPage = () => {
                       />
                     </th>
                     {[1,2,3,4].map((n) => (
-                      <th key={`installment-header-${n}`} colSpan={11} className={`px-3 py-1.5 text-xs font-bold text-gray-custom-700 text-center bg-gray-custom-100 border-l-2 ${n === 1 ? 'border-gray-custom-400' : 'border-gray-custom-300'}`}>
+                      <th
+                        key={`installment-header-${n}`}
+                        colSpan={14}
+                        className={`px-3 py-1.5 text-xs font-bold text-gray-custom-700 text-center bg-gray-custom-100 border-l-4 border-gray-custom-300`}
+                      >
                         INSTALLMENT {n}
                       </th>
                     ))}
                     {user?.role !== 'user' && (
-                      <th rowSpan={2} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 text-center whitespace-nowrap">
+                      <th rowSpan={3} className="px-3 py-2 text-xs font-semibold text-gray-custom-600 text-center whitespace-nowrap">
                         Actions
                       </th>
                     )}
                   </tr>
-                  <tr className="border-b border-gray-custom-200 bg-white">
-                    {[1,2,3,4].flatMap((n) => ([
-                      <th key={`total-amount-${n}`} className={`${paymentHeaderClass} ${n === 1 ? 'border-l-2 border-gray-custom-400' : 'border-l border-gray-custom-300'}`}>
-                        Total Amount
+                  {/* Middle header row: Inst Total / Inst Pending, then group into Amount 1 and Amount 2 */}
+                  <tr className="border-b border-gray-custom-300 bg-white">
+                    {[1, 2, 3, 4].flatMap((n) => ([
+                      <th
+                        key={`inst-total-${n}`}
+                        rowSpan={2}
+                        className={`${paymentHeaderClass} border-l-4 border-gray-custom-300`}
+                      >
+                        Inst Total
                       </th>,
+                      <th
+                        key={`inst-pending-${n}`}
+                        rowSpan={2}
+                        className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}
+                      >
+                        Inst Pending
+                      </th>,
+                      <th key={`amount1-group-${n}`} colSpan={6} className={paymentHeaderClass}>
+                        Amount 1
+                      </th>,
+                      <th
+                        key={`amount2-group-${n}`}
+                        colSpan={6}
+                        className={`${paymentHeaderClass} border-l-2 border-gray-custom-300`}
+                      >
+                        Amount 2
+                      </th>,
+                    ]))}
+                  </tr>
+                  {/* Bottom header row: individual columns under Amount 1 and Amount 2, each with its own details */}
+                  <tr className="border-b border-gray-custom-300 bg-white">
+                    {[1, 2, 3, 4].flatMap((n) => ([
                       <th key={`amount1-date-${n}`} className={paymentHeaderClass}>
-                        1st Amount Date
+                        <ColumnFilterMenu
+                          label="1st Amount Date"
+                          options={columnOptions[`date1_${n}`] || []}
+                          selectedValues={columnFilters[`date1_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`date1_${n}`, values)}
+                          onSort={(dir) => handleSort(`date1_${n}`, dir)}
+                          sortDir={sortBy === `date1_${n}` ? sortDir : null}
+                          enableOptions={false}
+                          rangeType="date"
+                        />
                       </th>,
                       <th key={`amount1-${n}`} className={paymentHeaderClass}>
                         <ColumnFilterMenu
@@ -801,8 +891,70 @@ const StudentsPage = () => {
                           rangeType="number"
                         />
                       </th>,
-                      <th key={`amount2-date-${n}`} className={paymentHeaderClass}>
-                        2nd Amount Date
+                      <th
+                        key={`amount1-recv-${n}`}
+                        className={paymentHeaderClass}
+                      >
+                        <ColumnFilterMenu
+                          label="1st Received In"
+                          options={columnOptions[`recv_${n}`] || []}
+                          selectedValues={columnFilters[`recv_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`recv_${n}`, values)}
+                          onSort={(dir) => handleSort(`recv_${n}`, dir)}
+                          sortDir={sortBy === `recv_${n}` ? sortDir : null}
+                          enableOptions={true}
+                        />
+                      </th>,
+                      <th key={`amount1-ak-approval-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label="1st AK's Approval"
+                          options={columnOptions[`ak_approval_${n}`] || []}
+                          selectedValues={columnFilters[`ak_approval_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`ak_approval_${n}`, values)}
+                          onSort={(dir) => handleSort(`ak_approval_${n}`, dir)}
+                          sortDir={sortBy === `ak_approval_${n}` ? sortDir : null}
+                          enableOptions={true}
+                        />
+                      </th>,
+                      <th key={`amount1-ak-remarks-${n}`} className={paymentHeaderClass}>
+                        <ColumnFilterMenu
+                          label="1st AK's Remarks"
+                          options={columnOptions[`ak_remarks_${n}`] || []}
+                          selectedValues={columnFilters[`ak_remarks_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`ak_remarks_${n}`, values)}
+                          onSort={(dir) => handleSort(`ak_remarks_${n}`, dir)}
+                          sortDir={sortBy === `ak_remarks_${n}` ? sortDir : null}
+                          enableOptions={false}
+                        />
+                      </th>,
+                      <th
+                        key={`amount1-remarks-${n}`}
+                        className={paymentHeaderClass}
+                      >
+                        <ColumnFilterMenu
+                          label="1st Remarks"
+                          options={columnOptions[`remarks_${n}`] || []}
+                          selectedValues={columnFilters[`remarks_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`remarks_${n}`, values)}
+                          onSort={(dir) => handleSort(`remarks_${n}`, dir)}
+                          sortDir={sortBy === `remarks_${n}` ? sortDir : null}
+                          enableOptions={false}
+                        />
+                      </th>,
+                      <th
+                        key={`amount2-date-${n}`}
+                        className={`${paymentHeaderClass} border-l-2 border-gray-custom-300`}
+                      >
+                        <ColumnFilterMenu
+                          label="2nd Amount Date"
+                          options={columnOptions[`date2_${n}`] || []}
+                          selectedValues={columnFilters[`date2_${n}`] || []}
+                          onApply={(values) => handleColumnFilterChange(`date2_${n}`, values)}
+                          onSort={(dir) => handleSort(`date2_${n}`, dir)}
+                          sortDir={sortBy === `date2_${n}` ? sortDir : null}
+                          enableOptions={false}
+                          rangeType="date"
+                        />
                       </th>,
                       <th key={`amount2-${n}`} className={paymentHeaderClass}>
                         <ColumnFilterMenu
@@ -816,71 +968,17 @@ const StudentsPage = () => {
                           rangeType="number"
                         />
                       </th>,
-                      <th key={`recv-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="Received In"
-                          options={columnOptions[`recv_${n}`] || []}
-                          selectedValues={columnFilters[`recv_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`recv_${n}`, values)}
-                          onSort={(dir) => handleSort(`recv_${n}`, dir)}
-                          sortDir={sortBy === `recv_${n}` ? sortDir : null}
-                          enableOptions={true}
-                        />
+                      <th key={`amount2-recv-${n}`} className={paymentHeaderClass}>
+                        2nd Received In
                       </th>,
-                      <th key={`ak-approval-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="AK's Approval"
-                          options={columnOptions[`ak_approval_${n}`] || []}
-                          selectedValues={columnFilters[`ak_approval_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`ak_approval_${n}`, values)}
-                          onSort={(dir) => handleSort(`ak_approval_${n}`, dir)}
-                          sortDir={sortBy === `ak_approval_${n}` ? sortDir : null}
-                          enableOptions={true}
-                        />
+                      <th key={`amount2-ak-approval-${n}`} className={paymentHeaderClass}>
+                        2nd AK's Approval
                       </th>,
-                      <th key={`ak-remarks-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="AK's Remarks"
-                          options={columnOptions[`ak_remarks_${n}`] || []}
-                          selectedValues={columnFilters[`ak_remarks_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`ak_remarks_${n}`, values)}
-                          onSort={(dir) => handleSort(`ak_remarks_${n}`, dir)}
-                          sortDir={sortBy === `ak_remarks_${n}` ? sortDir : null}
-                          enableOptions={false}
-                        />
+                      <th key={`amount2-ak-remarks-${n}`} className={paymentHeaderClass}>
+                        2nd AK's Remarks
                       </th>,
-                      <th key={`inst-remarks-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="Installment Remarks"
-                          options={columnOptions[`inst_remarks_${n}`] || []}
-                          selectedValues={columnFilters[`inst_remarks_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`inst_remarks_${n}`, values)}
-                          onSort={(dir) => handleSort(`inst_remarks_${n}`, dir)}
-                          sortDir={sortBy === `inst_remarks_${n}` ? sortDir : null}
-                          enableOptions={false}
-                        />
-                      </th>,
-                      <th key={`acc-remarks-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="Accounting Remarks"
-                          options={columnOptions[`acc_remarks_${n}`] || []}
-                          selectedValues={columnFilters[`acc_remarks_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`acc_remarks_${n}`, values)}
-                          onSort={(dir) => handleSort(`acc_remarks_${n}`, dir)}
-                          sortDir={sortBy === `acc_remarks_${n}` ? sortDir : null}
-                          enableOptions={false}
-                        />
-                      </th>,
-                      <th key={`remarks-${n}`} className={paymentHeaderClass}>
-                        <ColumnFilterMenu
-                          label="Remarks"
-                          options={columnOptions[`remarks_${n}`] || []}
-                          selectedValues={columnFilters[`remarks_${n}`] || []}
-                          onApply={(values) => handleColumnFilterChange(`remarks_${n}`, values)}
-                          onSort={(dir) => handleSort(`remarks_${n}`, dir)}
-                          sortDir={sortBy === `remarks_${n}` ? sortDir : null}
-                          enableOptions={false}
-                        />
+                      <th key={`amount2-remarks-${n}`} className={paymentHeaderClass}>
+                        2nd Remarks
                       </th>,
                     ]))}
                   </tr>
@@ -896,7 +994,7 @@ const StudentsPage = () => {
                     ) : allStudents.map((student) => (
                     <tr 
                       key={student.id}
-                      className="border-b border-gray-custom-200 last:border-b-0 hover:bg-gray-custom-50"
+                      className="border-b border-gray-custom-300 last:border-b-0 hover:bg-gray-custom-50"
                     >
                       {showBulkUi && (
                         <td className="p-4" onClick={(e) => e.stopPropagation()}>
@@ -918,45 +1016,52 @@ const StudentsPage = () => {
                       )}
                       <td className="p-4 text-gray-custom-600 font-mono">{student.enrollment_number || '-'}</td>
                       <td 
-                        className={`${nameStickyCellClass} cursor-pointer hover:bg-gray-custom-100`}
+                        className={`${nameStickyCellClass} cursor-pointer hover:bg-gray-custom-100 px-3`}
                         onClick={() => navigate(`/students/${student.id}`)}
                       >
                         <div className="flex items-center gap-3">
                           <Avatar name={student.name} />
                           <div className="min-w-0">
                             <p className="font-medium text-gray-custom-800 truncate">{student.name}</p>
-                            <p className="text-sm text-gray-custom-500 truncate">{student.email}</p>
                           </div>
                         </div>
                       </td>
                       
                       <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{student.zone || '-'}</td>
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[150px]">{student.source_of_student || '-'}</td>
                       <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{student.associate_wise_installments || '-'}</td>
                       <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.total_amount)}</td>
                       <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.recieved_amount ?? student.received_amount)}</td>
-                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px] border-r-2 border-gray-custom-400">{formatCurrency(student.net_amount)}</td>
+                      <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px] border-r-2 border-gray-custom-300">{formatCurrency(student.net_amount)}</td>
                       {[1,2,3,4].flatMap((instNum) => {
                         const instData = getInstallmentData(student.id, instNum);
-                        const borderClass = instNum === 1 ? 'border-l-2 border-gray-custom-400' : 'border-l border-gray-custom-300';
+                        const borderClass = 'border-l-4 border-gray-custom-300';
                         if (!instData) {
                           return [
-                            <td key={`total-${student.id}-${instNum}`} className={`${paymentCellClass} ${borderClass}`}>-</td>,
+                            <td key={`inst-total-${student.id}-${instNum}`} className={`${paymentCellClass} ${borderClass}`}>-</td>,
+                            <td key={`inst-pending-${student.id}-${instNum}`} className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}>-</td>,
                             <td key={`amt1-date-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
                             <td key={`amt1-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`amt2-date-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt1-recv-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt1-ak-approval-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt1-ak-remarks-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt1-remarks-${student.id}-${instNum}`} className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}>-</td>,
+                            <td key={`amt2-date-${student.id}-${instNum}`} className={`${paymentCellClass} border-l-2 border-gray-custom-500`}>-</td>,
                             <td key={`amt2-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`recv-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`ak-approval-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`ak-remarks-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`inst-remarks-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`acc-remarks-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
-                            <td key={`remarks-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt2-recv-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt2-ak-approval-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt2-ak-remarks-${student.id}-${instNum}`} className={paymentCellClass}>-</td>,
+                            <td key={`amt2-remarks-${student.id}-${instNum}`} className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}>-</td>,
                           ];
                         }
                         const latestPayment = instData.payments[0];
+                        const secondPayment = instData.payments[1];
                         return [
-                          <td key={`total-${student.id}-${instNum}`} className={`${paymentCellClass} ${borderClass}`}>
+                          <td key={`inst-total-${student.id}-${instNum}`} className={`${paymentCellClass} ${borderClass}`}>
                             {formatCurrency(instData.totalAmount)}
+                          </td>,
+                          <td key={`inst-pending-${student.id}-${instNum}`} className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}>
+                            {formatCurrency(instData.pendingAmount)}
                           </td>,
                           <td key={`amt1-date-${student.id}-${instNum}`} className={paymentCellClass}>
                             {formatDateDisplay(instData.amount1Date)}
@@ -964,21 +1069,15 @@ const StudentsPage = () => {
                           <td key={`amt1-${student.id}-${instNum}`} className={paymentCellClass}>
                             {instData.amount1 > 0 ? formatCurrency(instData.amount1) : '-'}
                           </td>,
-                          <td key={`amt2-date-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {formatDateDisplay(instData.amount2Date)}
-                          </td>,
-                          <td key={`amt2-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {instData.amount2 > 0 ? formatCurrency(instData.amount2) : '-'}
-                          </td>,
-                          <td key={`recv-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {instData.receivedIn || '-'}
+                          <td key={`amt1-recv-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {instData.amount1ReceivedIn || '-'}
                           </td>,
                           <td key={`ak-approval-${student.id}-${instNum}`} className={paymentCellClass}>
                             {!latestPayment ? (
                               '-'
                             ) : canEditAk ? (
                               <select
-                                value={akEdits[latestPayment.id]?.ak_approval ?? instData.akApproval ?? ''}
+                                value={akEdits[latestPayment.id]?.ak_approval ?? instData.amount1AkApproval ?? ''}
                                 disabled={!!savingPayments[latestPayment.id]}
                                 onClick={(e) => e.stopPropagation()}
                                 onKeyDown={preventEnterSubmit}
@@ -988,11 +1087,11 @@ const StudentsPage = () => {
                                     ...prev,
                                     [latestPayment.id]: { ...prev[latestPayment.id], ak_approval: nextVal },
                                   }));
-                                  if ((instData.akApproval ?? '') !== nextVal) {
+                                  if ((instData.amount1AkApproval ?? '') !== nextVal) {
                                     saveAkChanges(latestPayment, { ak_approval: nextVal });
                                   }
                                 }}
-                                className="w-full rounded border border-gray-custom-200 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
+                                className="w-full rounded border border-gray-custom-300 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
                               >
                                 <option value="">Select</option>
                                 {AK_APPROVAL_OPTIONS.map((opt) => (
@@ -1002,7 +1101,7 @@ const StudentsPage = () => {
                                 ))}
                               </select>
                             ) : (
-                              instData.akApproval || '-'
+                              instData.amount1AkApproval || '-'
                             )}
                           </td>,
                           <td key={`ak-remarks-${student.id}-${instNum}`} className={paymentCellClass}>
@@ -1027,20 +1126,86 @@ const StudentsPage = () => {
                                     saveAkChanges(latestPayment, { ak_remarks: nextVal });
                                   }
                                 }}
-                                className="w-full rounded border border-gray-custom-200 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
+                                className="w-full rounded border border-gray-custom-300 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
                               />
                             ) : (
                               latestPayment.ak_remarks || '-'
                             )}
                           </td>,
-                          <td key={`inst-remarks-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {instData.installmentRemarks || '-'}
+                          <td key={`remarks-${student.id}-${instNum}`} className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}>
+                            {instData.amount1Remarks || '-'}
                           </td>,
-                          <td key={`acc-remarks-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {instData.accountingRemarks || '-'}
+                          <td key={`amt2-date-${student.id}-${instNum}`} className={`${paymentCellClass} border-l-2 border-gray-custom-500`}>
+                            {formatDateDisplay(instData.amount2Date)}
                           </td>,
-                          <td key={`remarks-${student.id}-${instNum}`} className={paymentCellClass}>
-                            {instData.remarks || '-'}
+                          <td key={`amt2-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {instData.amount2 > 0 ? formatCurrency(instData.amount2) : '-'}
+                          </td>,
+                          <td key={`amt2-recv-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {instData.amount2ReceivedIn || '-'}
+                          </td>,
+                          <td key={`amt2-ak-approval-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {!secondPayment ? (
+                              '-'
+                            ) : canEditAk ? (
+                              <select
+                                value={akEdits[secondPayment.id]?.ak_approval ?? instData.amount2AkApproval ?? ''}
+                                disabled={!!savingPayments[secondPayment.id]}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={preventEnterSubmit}
+                                onChange={(e) => {
+                                  const nextVal = e.target.value;
+                                  setAkEdits((prev) => ({
+                                    ...prev,
+                                    [secondPayment.id]: { ...prev[secondPayment.id], ak_approval: nextVal },
+                                  }));
+                                  if ((instData.amount2AkApproval ?? '') !== nextVal) {
+                                    saveAkChanges(secondPayment, { ak_approval: nextVal });
+                                  }
+                                }}
+                                className="w-full rounded border border-gray-custom-300 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
+                              >
+                                <option value="">Select</option>
+                                {AK_APPROVAL_OPTIONS.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              instData.amount2AkApproval || '-'
+                            )}
+                          </td>,
+                          <td key={`amt2-ak-remarks-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {!secondPayment ? (
+                              '-'
+                            ) : canEditAk ? (
+                              <input
+                                type="text"
+                                value={akEdits[secondPayment.id]?.ak_remarks ?? secondPayment.ak_remarks ?? ''}
+                                disabled={!!savingPayments[secondPayment.id]}
+                                onClick={(e) => e.stopPropagation()}
+                                onKeyDown={preventEnterSubmit}
+                                onChange={(e) =>
+                                  setAkEdits((prev) => ({
+                                    ...prev,
+                                    [secondPayment.id]: { ...prev[secondPayment.id], ak_remarks: e.target.value },
+                                  }))
+                                }
+                                onBlur={() => {
+                                  const nextVal = akEdits[secondPayment.id]?.ak_remarks ?? secondPayment.ak_remarks ?? '';
+                                  if ((secondPayment.ak_remarks ?? '') !== nextVal) {
+                                    saveAkChanges(secondPayment, { ak_remarks: nextVal });
+                                  }
+                                }}
+                                className="w-full rounded border border-gray-custom-300 bg-white px-2 py-1 text-sm text-gray-custom-700 focus:border-primary focus:outline-none"
+                              />
+                            ) : (
+                              instData.amount2AkRemarks || '-'
+                            )}
+                          </td>,
+                          <td key={`amt2-remarks-${student.id}-${instNum}`} className={paymentCellClass}>
+                            {instData.amount2Remarks || '-'}
                           </td>,
                         ];
                       })}
@@ -1072,7 +1237,7 @@ const StudentsPage = () => {
             )}
           </div>
 
-          <div className="sticky bottom-[-15px] left-0 right-0 bg-white pt-2 border-gray-custom-200 z-30">
+          <div className="sticky bottom-[-15px] left-0 right-0 bg-white pt-2 border-gray-custom-300 z-30">
             <div
               className="overflow-x-auto"
               ref={barScrollRef}

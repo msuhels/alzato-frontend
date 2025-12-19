@@ -210,7 +210,7 @@ const StudentDetailsPage = () => {
               {associateWiseInstallments && (
                 <>
                   <span className="hidden md:inline">&bull;</span>
-                  <span>Assoc. Installments: {associateWiseInstallments}</span>
+                  <span>Package: {associateWiseInstallments}</span>
                 </>
               )}
             </div>
@@ -363,8 +363,6 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Accounting Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
                         {isAdmin && (
@@ -382,8 +380,6 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                             <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                             <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={p.accounting_remarks} /></td>
                             <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
                             {isAdmin && (
@@ -420,8 +416,6 @@ export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, o
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment Remarks</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Accounting Remarks</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
                             {isAdmin && (
@@ -439,8 +433,6 @@ export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, o
                                 <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                                 <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
-                                <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
-                                <td className="p-3 text-center"><RemarksTooltip remarks={p.accounting_remarks} /></td>
                                 <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
                                 <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
                                 {isAdmin && (
@@ -514,14 +506,14 @@ const EditStudentModal = ({ initial, onClose, onSave, saving }: { initial: EditV
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-custom-700">Associate Wise Installments</label>
+            <label className="block text-sm font-medium text-gray-custom-700">Package</label>
             <select value={values.associateWiseInstallments || ''} onChange={(e) => setValues({ ...values, associateWiseInstallments: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none">
               <option value="">Select</option>
               {ASSOCIATE_WISE_INSTALLMENTS.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-custom-700">Associate Wise Installments</label>
+            <label className="block text-sm font-medium text-gray-custom-700">Package</label>
             <select value={values.associateWiseInstallments || ''} onChange={(e) => setValues({ ...values, associateWiseInstallments: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none">
               <option value="">Select</option>
               {ASSOCIATE_WISE_INSTALLMENTS.map(v => <option key={v} value={v}>{v}</option>)}

@@ -207,7 +207,7 @@ const UpdatesPage = () => {
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
         {loading ? (
           <div className="min-w-[2000px]">
-            <TableSkeleton rows={8} columns={15} />
+            <TableSkeleton rows={8} columns={12} />
           </div>
         ) : items.length === 0 ? (
           <div className="text-center text-gray-custom-500 py-8">No updates yet.</div>
@@ -222,7 +222,7 @@ const UpdatesPage = () => {
               <thead>
                 <tr className="border-b border-gray-custom-200">
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Student Name</th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Associate wise</th>
+                  <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Term package</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Date</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Installment</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Installment count</th>
@@ -230,8 +230,6 @@ const UpdatesPage = () => {
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Purpose</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Received In</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Remarks</th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Installment Remarks</th>
-                  <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Accounting Remarks</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">AK Approval</th>
                   <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">AK Remarks</th>
                   {/* <th className="p-4 text-sm font-semibold text-gray-custom-500 whitespace-nowrap">Created At</th> */}
@@ -287,12 +285,6 @@ const UpdatesPage = () => {
                     <td className="p-4 text-gray-custom-600 whitespace-nowrap">{item.payment_recieved_in || '-'}</td>
                     <td className="p-4 text-center whitespace-nowrap">
                       <RemarksTooltip remarks={item.remarks} />
-                    </td>
-                    <td className="p-4 text-center whitespace-nowrap">
-                      <RemarksTooltip remarks={(item as any).installment_remarks} />
-                    </td>
-                    <td className="p-4 text-center whitespace-nowrap">
-                      <RemarksTooltip remarks={item.accounting_remarks} />
                     </td>
                     <td className="p-4 whitespace-nowrap">
                       <select

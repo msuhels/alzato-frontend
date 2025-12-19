@@ -167,8 +167,6 @@ const PaymentsPage = () => {
     purpose: (p) => normalizeValue(p.purpose),
     payment_recieved_in: (p) => normalizeValue(p.payment_recieved_in),
     remarks: (p) => normalizeValue(p.remarks),
-    installment_remarks: (p) => normalizeValue((p as any).installment_remarks),
-    accounting_remarks: (p) => normalizeValue(p.accounting_remarks),
     ak_approval: (p) => normalizeValue(p.ak_approval),
     ak_remarks: (p) => normalizeValue(p.ak_remarks),
   };
@@ -186,8 +184,6 @@ const PaymentsPage = () => {
       purpose: build(PAYMENT_PURPOSES, columnValueGetters.purpose),
       payment_recieved_in: build(PAYMENT_RECEIVED_IN_OPTIONS, columnValueGetters.payment_recieved_in),
       remarks: [],
-      installment_remarks: [],
-      accounting_remarks: [],
       ak_approval: build(AK_APPROVAL_OPTIONS, columnValueGetters.ak_approval),
       ak_remarks: [],
     };
@@ -346,7 +342,7 @@ const PaymentsPage = () => {
         <div className="mt-6">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
           {loading ? (
-            <TableSkeleton rows={10} columns={isAdmin ? 12 : 11} />
+            <TableSkeleton rows={10} columns={isAdmin ? 10 : 9} />
           ) : payments.length === 0 ? (
             <div className="text-center text-gray-custom-500 py-8">No records found.</div>
           ) : (
@@ -570,28 +566,6 @@ const AllPaymentsTable = ({
                         </th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
                           <ColumnFilterMenu
-                            label="Installment Remarks"
-                            options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
-                            onSort={(dir) => onSort('installment_remarks', dir)}
-                            sortDir={sortBy === 'installment_remarks' ? sortDir : null}
-                            enableOptions={false}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Accounting Remarks"
-                            options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
-                            onSort={(dir) => onSort('accounting_remarks', dir)}
-                            sortDir={sortBy === 'accounting_remarks' ? sortDir : null}
-                            enableOptions={false}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
                             label="AK Approval"
                             options={columnOptions.ak_approval || []}
                             selectedValues={columnFilters.ak_approval || []}
@@ -629,8 +603,6 @@ const AllPaymentsTable = ({
                             <td className="p-3 text-gray-custom-600">{p.purpose || '-'}</td>
                             <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={(p as any).installment_remarks} /></td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={p.accounting_remarks} /></td>
                             <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
                             {isAdmin && (

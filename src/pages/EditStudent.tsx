@@ -205,7 +205,7 @@ const EditStudentPage = () => {
             </div>
 
             <div>
-              <label htmlFor="associateWiseInstallments" className="block text-sm font-medium leading-6 text-gray-custom-900">Associate Wise Installments</label>
+              <label htmlFor="associateWiseInstallments" className="block text-sm font-medium leading-6 text-gray-custom-900">Package</label>
               <div className="mt-1.5">
                 <input
                   type="text"

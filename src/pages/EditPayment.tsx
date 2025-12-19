@@ -132,8 +132,6 @@ const EditPaymentPage = () => {
           const aksApproval = isAdmin ? ((form.querySelector('#aksApproval') as HTMLSelectElement | null)?.value) : 'No';
           const remarks = (form.querySelector('#remarks') as HTMLTextAreaElement | null)?.value;
           const akRemarks = isAdmin ? (form.querySelector('#akRemarks') as HTMLTextAreaElement | null)?.value : undefined;
-          const accountingRemarks = (form.querySelector('#accountingRemarks') as HTMLTextAreaElement | null)?.value;
-          const applicationRemark = (form.querySelector('#applicationRemark') as HTMLTextAreaElement | null)?.value;
           const purpose = (form.querySelector('#purpose') as HTMLSelectElement | null)?.value;
           const installmentNumberStr = (form.querySelector('#installmentNumber') as HTMLInputElement).value;
           const installmentNumber = installmentNumberStr ? parseInt(installmentNumberStr, 10) : undefined;
@@ -152,8 +150,6 @@ const EditPaymentPage = () => {
             if (isInstallment) {
               // Send both snake_case variants to be compatible with differing backends
               body.ak_remarks = isAdmin ? (akRemarks !== undefined ? akRemarks : undefined) : undefined;
-              body.accounting_remarks = accountingRemarks !== undefined ? accountingRemarks : undefined;
-              body.installment_remarks = applicationRemark !== undefined ? applicationRemark : undefined;
             }
             await paymentsService.update(payment.id, body);
             // Redirect back to Updates page if we came from there, otherwise go to student page
@@ -229,14 +225,6 @@ const EditPaymentPage = () => {
                     className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary disabled:bg-gray-100 disabled:cursor-not-allowed"
                     placeholder={!isAdmin ? "Only admins can edit AK's remarks" : undefined}
                   ></textarea>
-                </div>
-                <div>
-                  <label htmlFor="applicationRemark" className="block text-sm font-medium leading-6 text-gray-custom-900">Installment Remark</label>
-                  <textarea id="applicationRemark" defaultValue={(payment as any).installment_remarks || ''} rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
-                </div>
-                <div>
-                  <label htmlFor="accountingRemarks" className="block text-sm font-medium leading-6 text-gray-custom-900">Accounting Remarks</label>
-                  <textarea id="accountingRemarks" defaultValue={payment.accounting_remarks || ''} rows={1} className="mt-1.5 block w-full rounded-md border-0 py-2 text-gray-custom-900 shadow-sm ring-1 ring-inset ring-gray-custom-300 focus:ring-2 focus:ring-inset focus:ring-primary"></textarea>
                 </div>
               </>
             )}

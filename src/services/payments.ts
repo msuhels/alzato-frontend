@@ -25,11 +25,13 @@ export type PaymentCreateBody = {
   student_id: number | string;
   installment_date: string; // YYYY-MM-DD
   installment_number?: number;
-  amount: number;
+  amount?: number; // Optional if deposit_amount is provided
+  deposit_amount?: number; // Optional: total deposit for waterfall distribution
   payment_recieved_in?: string;
   payment_type?: string;
   remarks?: string;
   purpose?: string;
+  installment_purposes?: Record<number, string>; // Map of installment_number -> purpose for waterfall payments
   ak_approval?: string;
   ak_remarks?: string;
   accounting_remarks?: string;
