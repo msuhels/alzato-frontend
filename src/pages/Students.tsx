@@ -8,6 +8,7 @@ import TableSkeleton from '../components/TableSkeleton';
 import { useAuth } from '../hooks/useAuth';
 import ColumnFilterMenu from '../components/ColumnFilterMenu';
 import { ZONES, ASSOCIATE_WISE_INSTALLMENTS, PAYMENT_RECEIVED_IN_OPTIONS, AK_APPROVAL_OPTIONS } from '../lib/constants';
+import { parseInstallmentStructure } from '../lib/dateUtils';
 
 const Avatar = ({ name }: { name: string }) => {
   const avatarColors = [
@@ -462,13 +463,23 @@ const StudentsPage = () => {
   };
 
   // Get processed data for a specific installment number
-  const getInstallmentData = (studentId: string | number, installmentNumber: number) => {
+  const getInstallmentData = (studentId: string | number, installmentNumber: number, student?: StudentListItem) => {
     const grouped = getPaymentsByInstallment(studentId);
     const payments = grouped[installmentNumber] || [];
-    if (payments.length === 0) return null;
-
-    // Calculate total amount
+    
+    // Get target amount for this installment from package structure
+    const packageStructure = student?.associate_wise_installments;
+    const installmentTargets = parseInstallmentStructure(packageStructure);
+    const targetAmount = installmentTargets[installmentNumber - 1] || 0; // installmentNumber is 1-based, array is 0-based
+    
+    // Calculate total amount paid for this installment
     const totalAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    
+    // Calculate pending amount: target - total paid
+    const pendingAmount = Math.max(0, targetAmount - totalAmount);
+    
+    // If no payments and no target amount, return null
+    if (payments.length === 0 && targetAmount === 0) return null;
     
     // Get dates for AMOUNT 1 and AMOUNT 2
     const amount1Date = payments[0]?.installment_date;
@@ -499,8 +510,6 @@ const StudentsPage = () => {
     const latest = payments[payments.length - 1] || payments[0];
     const instRemarks = latest?.installment_remarks || '';
     const accRemarks = latest?.accounting_remarks || '';
-
-    const pendingAmount = Math.max(0, (totalAmount || 0) - (amount1 || 0) - (amount2 || 0));
 
     return {
       totalAmount,
@@ -1034,7 +1043,7 @@ const StudentsPage = () => {
                       <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px]">{formatCurrency(student.recieved_amount ?? student.received_amount)}</td>
                       <td className="p-4 text-gray-custom-600 whitespace-nowrap min-w-[120px] border-r-2 border-gray-custom-300">{formatCurrency(student.net_amount)}</td>
                       {[1,2,3,4].flatMap((instNum) => {
-                        const instData = getInstallmentData(student.id, instNum);
+                        const instData = getInstallmentData(student.id, instNum, student);
                         const borderClass = 'border-l-4 border-gray-custom-300';
                         if (!instData) {
                           return [
