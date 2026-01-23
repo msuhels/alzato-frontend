@@ -5,7 +5,7 @@
  * @returns Formatted date string
  */
 export const formatDate = (
-  dateString: string, 
+  dateString: string,
   options: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
@@ -59,10 +59,10 @@ export const formatDateShort = (dateString: string): string => {
  * @returns The next installment number
  */
 export const getNextInstallmentNumber = (
-  existingPayments: Array<{ payment_type?: string }>, 
+  existingPayments: Array<{ payment_type?: string }>,
   paymentType: string
 ): number => {
-  const paymentsOfType = existingPayments.filter(p => 
+  const paymentsOfType = existingPayments.filter(p =>
     (p.payment_type || '').toLowerCase() === paymentType.toLowerCase()
   );
   return paymentsOfType.length + 1;
@@ -77,11 +77,11 @@ export const addInstallmentNumbers = <T extends { payment_type?: string }>(
   payments: T[]
 ): (T & { installment_number: number })[] => {
   const paymentTypeCounts: Record<string, number> = {};
-  
+
   return payments.map(payment => {
     const paymentType = (payment.payment_type || '').toLowerCase();
     paymentTypeCounts[paymentType] = (paymentTypeCounts[paymentType] || 0) + 1;
-    
+
     return {
       ...payment,
       installment_number: paymentTypeCounts[paymentType]
@@ -147,12 +147,12 @@ export const calculateWaterfallPreview = (
     const alreadyPaid = existingProgress[installmentNumber] || 0;
     const needed = Math.max(0, target - alreadyPaid);
 
-    // Check if installment already has 2 records (max constraint)
+    // Check if installment already has 4 records (max constraint)
     const existingRecordsForInst = existingPayments.filter(
       p => Number(p.installment_number) === installmentNumber
     );
-    
-    if (needed <= 0 || existingRecordsForInst.length >= 2) {
+
+    if (needed <= 0 || existingRecordsForInst.length >= 4) {
       continue;
     }
 
