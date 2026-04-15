@@ -111,8 +111,9 @@ export const PAYMENT_RECEIVED_IN_OPTIONS = [
   'Global dream study abroad',
   'IELTS academy',
   'Alzato Italy',
-  'HUF A',
-  'HUF R',
+  'Alzato Canada',
+  'Alzato UK',
+  'Apoorv Kohli',
   'Others',
   'Cash',
 ];

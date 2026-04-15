@@ -301,7 +301,7 @@ const StudentsPage = () => {
           grouped[instNum].push(payment);
         }
       });
-
+      
       // Process each installment group
       [1, 2, 3, 4].forEach((instNum) => {
         const payments = grouped[instNum] || [];
@@ -693,6 +693,9 @@ const StudentsPage = () => {
     }
   };
 
+  // suffix to add at the installment
+  const suffixes = ["", "st", "nd", "rd", "th"];
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -900,14 +903,14 @@ const StudentsPage = () => {
                         rowSpan={2}
                         className={`${paymentHeaderClass} border-l-4 border-gray-custom-300`}
                       >
-                        Inst Total
+                        {n}{suffixes[n]} Installment Received
                       </th>,
                       <th
                         key={`inst-pending-${n}`}
                         rowSpan={2}
                         className={`${paymentHeaderClass} border-r-2 border-gray-custom-300`}
                       >
-                        Inst Pending
+                        {n}{suffixes[n]} Installment Pending
                       </th>,
                       <th key={`amount1-group-${n}`} colSpan={6} className={paymentHeaderClass}>
                         Amount 1
