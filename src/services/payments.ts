@@ -19,6 +19,7 @@ export type PaymentListItem = {
   installment_remarks?: string;
   net_amount?: number; // Optional backend-calculated field
   is_read?: boolean; // Whether payment has been read
+  remark_edited?: boolean; // Whether the remark has been edited after creation
 };
 
 export type PaymentCreateBody = {
@@ -37,6 +38,7 @@ export type PaymentCreateBody = {
   accounting_remarks?: string;
   installment_remarks?: string;
   net_amount?: number; // Optional backend-calculated field
+  remark_edited?: boolean;
 };
 
 export type PaymentUpdateBody = Partial<PaymentCreateBody>;

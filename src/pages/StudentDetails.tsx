@@ -5,7 +5,7 @@ import { formatINR } from '../lib/currency';
 import { formatDate } from '../lib/dateUtils';
 import { studentsService } from '../services/students';
 import { paymentsService, PaymentListItem } from '../services/payments';
-import { Plus, Edit, Trash2, Info, Pencil } from 'lucide-react';
+import { Plus, Edit, Trash2, Info, Pencil, Check, X } from 'lucide-react';
 import { STUDENT_CATEGORIES, ZONES, ASSOCIATE_WISE_INSTALLMENTS } from '../lib/constants';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useAuth } from '../hooks/useAuth';
@@ -27,9 +27,9 @@ const Avatar = ({ name, size = 'lg' }: { name: string; size?: 'lg' | 'sm' }) => 
 const RemarksTooltip = ({ remarks }: { remarks?: string }) => {
   if (!remarks) return <span className="text-gray-custom-400">-</span>;
   return (
-    <div className="group relative flex items-center">
+    <div className="group relative flex items-center gap-1">
       <Info size={16} className="text-gray-custom-500 cursor-pointer" />
-      <div className="absolute bottom-full z-10 mb-2 hidden w-64 rounded-md bg-gray-custom-800 p-2 text-xs text-black group-hover:block">
+      <div className=" items-center rounded-md bg-gray-custom-800  text-[15px] text-black ">
         {remarks}
       </div>
     </div>
@@ -324,7 +324,17 @@ const StudentDetailsPage = () => {
             {payments.length === 0 && <p className="text-center text-gray-500 py-8">No payment records found for this student.</p>}
             {payments.length > 0 && (
               <>
-                <AllPaymentsTable payments={groupedSortedAll} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} />
+                <AllPaymentsTable
+                  payments={groupedSortedAll}
+                  highlightedPaymentId={highlightedPaymentId}
+                  isAdmin={isAdmin}
+                  onDelete={requestPaymentDelete}
+                  canEditRemark={user?.role === 'user'}
+                  onSaveRemark={async (id: string | number, remarks: string) => {
+                    await paymentsService.update(id, { remarks, remark_edited: true });
+                    await fetchPaymentsForStudent();
+                  }}
+                />
                 {/* {activeTab === 'Installment' && (installmentPayments.length > 0 ? <SharedPaymentsTable payments={installmentPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)}
                 {activeTab === 'Other' && (otherPayments.length > 0 ? <SharedPaymentsTable payments={otherPayments} highlightedPaymentId={highlightedPaymentId} isAdmin={isAdmin} onDelete={requestPaymentDelete} /> : <NoPaymentsForTab />)} */}
               </>
@@ -350,7 +360,50 @@ const StudentDetailsPage = () => {
 //     <p className="text-center text-gray-500 py-8">No payments in this category.</p>
 // );
 
-const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => {
+
+// payment table
+const AllPaymentsTable = ({
+  payments,
+  highlightedPaymentId,
+  isAdmin,
+  onDelete,
+  canEditRemark = false,
+  onSaveRemark,
+}: {
+  payments: PaymentListItem[];
+  highlightedPaymentId?: string | number | null;
+  isAdmin: boolean;
+  onDelete: (id: string | number) => void;
+  canEditRemark?: boolean;
+  onSaveRemark?: (id: string | number, remarks: string) => Promise<void>;
+}) => {
+    const [editingId, setEditingId] = useState<string | number | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    const handleEdit = (p: PaymentListItem) => {
+      setEditingId(p.id);
+      setEditValue(p.remarks || '');
+    };
+
+    const handleCancel = () => {
+      setEditingId(null);
+      setEditValue('');
+    };
+
+    const handleSave = async (id: string | number) => {
+      if (!onSaveRemark) return;
+      setSaving(true);
+      try {
+        await onSaveRemark(id, editValue);
+        setEditingId(null);
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    const showActionsCol = isAdmin || canEditRemark;
+
     return (
         <div className="overflow-x-auto border rounded-lg">
             <table className="w-full min-w-[1300px] text-left">
@@ -365,13 +418,16 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
-                        {isAdmin && (
+                        {showActionsCol && (
                           <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
                         )}
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {payments.map(p => (
+                    {payments.map(p => {
+                      const isEditing = editingId === p.id;
+                      const remarkAlreadyEdited = (p as any).remark_edited === true;
+                      return (
                         <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
                             <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
                             {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}
@@ -379,21 +435,68 @@ const AllPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }:
                             <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
                             <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
                             <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                            <td className="p-3 text-center text-gray-custom-600"><RemarksTooltip remarks={p.remarks} /></td>
+                            <td className="p-3 text-gray-custom-600">
+                              {isEditing ? (
+                                <input
+                                  autoFocus
+                                  value={editValue}
+                                  onChange={e => setEditValue(e.target.value)}
+                                  className="w-full rounded border border-primary px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                />
+                              ) : (
+                                <RemarksTooltip remarks={p.remarks} />
+                              )}
+                            </td>
                             <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
                             <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
-                            {isAdmin && (
-                              <td className="p-3 text-center space-x-2">
-                                  <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors">
+                            {showActionsCol && (
+                              <td className="p-3 text-center">
+                                {isAdmin ? (
+                                  <div className="flex items-center justify-center gap-1">
+                                    <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors">
+                                        <Pencil size={16} />
+                                    </Link>
+                                    <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50">
+                                      <Trash2 size={16} />
+                                    </button>
+                                  </div>
+                                ) : canEditRemark ? (
+                                  isEditing ? (
+                                    <div className="flex items-center justify-center gap-1">
+                                      <button
+                                        onClick={() => handleSave(p.id)}
+                                        disabled={saving}
+                                        className="inline-flex items-center justify-center p-1.5 rounded-md text-black bg-primary hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                                        title="Save"
+                                      >
+                                        <Check size={16} />
+                                      </button>
+                                      <button
+                                        onClick={handleCancel}
+                                        disabled={saving}
+                                        className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-600 hover:bg-gray-custom-100 disabled:opacity-50 transition-colors"
+                                        title="Cancel"
+                                      >
+                                        <X size={16} />
+                                      </button>
+                                    </div>
+                                  ) : !remarkAlreadyEdited ? (
+                                    <button
+                                      onClick={() => handleEdit(p)}
+                                      className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors"
+                                      title="Edit remark"
+                                    >
                                       <Pencil size={16} />
-                                  </Link>
-                                  <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50">
-                                    <Trash2 size={16} />
-                                  </button>
+                                    </button>
+                                  ) : (
+                                    <span className="text-xs text-gray-custom-400">Edited</span>
+                                  )
+                                ) : null}
                               </td>
                             )}
                         </tr>
-                    ))}
+                      );
+                    })}
                 </tbody>
             </table>
         </div>
@@ -418,9 +521,8 @@ export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, o
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
                             <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
-                            {isAdmin && (
-                              <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
-                            )}
+                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
+                           
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -444,7 +546,7 @@ export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, o
                                         <Trash2 size={16} />
                                       </button>
                                   </td>
-                                )}
+                                )}                       
                             </tr>
                         ))}
                     </tbody>
