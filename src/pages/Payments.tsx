@@ -561,7 +561,6 @@ const AllPaymentsTable = ({
   onSelectAll: (checked: boolean) => void;
 }) => {
     const allSelected = payments.length > 0 && payments.every(p => selectedPaymentIds.has(p.id));
-    const someSelected = payments.some(p => selectedPaymentIds.has(p.id));
     return (
         <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-left">
@@ -572,9 +571,6 @@ const AllPaymentsTable = ({
                           <input
                             type="checkbox"
                             checked={allSelected}
-                            ref={(el) => {
-                              if (el) el.indeterminate = someSelected && !allSelected;
-                            }}
                             onChange={(e) => onSelectAll(e.target.checked)}
                             className="rounded ml-5 border-gray-custom-300"
                           />
