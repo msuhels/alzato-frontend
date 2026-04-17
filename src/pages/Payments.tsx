@@ -20,6 +20,9 @@ const PaymentsPage = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   // const [activeTab, setActiveTab] = useState<PaymentTab>('ALL');
+  const [selectedPaymentIds, setSelectedPaymentIds] = useState<Set<string | number>>(new Set());
+  const [bulkApprovalStatus, setBulkApprovalStatus] = useState<AkApprovalStatus | null>(null);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [payments, setPayments] = useState<PaymentListItem[]>([]);
@@ -239,6 +242,50 @@ const PaymentsPage = () => {
   //   { name: 'Other', label: 'Other', count: filteredCounts.other },
   // ];
 
+  
+  const handleSelectPayment = (id: string | number, checked: boolean) => {
+    setSelectedPaymentIds(prev => {
+      const newSet = new Set(prev);
+      if (checked) {
+        newSet.add(id);
+      } else {
+        newSet.delete(id);
+      }
+      return newSet;
+    });
+  };
+
+    const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedPaymentIds(new Set(payments.map(p => p.id)));
+    } else {
+      setSelectedPaymentIds(new Set());
+    }
+  };
+
+    const handleBulkUpdate = async () => {
+    if (!bulkApprovalStatus || selectedPaymentIds.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      const updates = Array.from(selectedPaymentIds).map(id =>
+        paymentsService.update(id, { ak_approval: bulkApprovalStatus })
+      );
+      await Promise.all(updates);
+      setSelectedPaymentIds(new Set());
+      setBulkApprovalStatus(null);
+      await fetchPayments();
+    } catch (e: any) {
+      setError(e?.response?.data?.error || 'Failed to update approvals');
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
+
+  useEffect(() => {
+    setSelectedPaymentIds(new Set());
+  }, [columnFilters, bankFilter, dateFrom, dateTo, searchText, sortBy, sortDir, currentPage]);
+
+
   const renderTableForTab = () => {
     // Payments are already filtered and paginated by backend
     return (
@@ -252,6 +299,9 @@ const PaymentsPage = () => {
         onFilterChange={handleColumnFilterChange}
         sortBy={sortBy}
         sortDir={sortDir}
+        selectedPaymentIds={selectedPaymentIds}
+        onSelectPayment={handleSelectPayment}
+        onSelectAll={handleSelectAll}
       />
     );
   };
@@ -339,6 +389,44 @@ const PaymentsPage = () => {
             ))}
           </nav>
         </div> */}
+
+        {/* bulk selection of payments and update the AK approval in one action */}
+
+        {selectedPaymentIds.size > 0 && (
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex gap-10">
+              <div>
+                <p className="text-sm font-semibold text-gray-custom-900">
+                  {selectedPaymentIds.size} student{selectedPaymentIds.size !== 1 ? 's' : ''} selected
+                </p>
+                <p className="text-sm text-gray-custom-600">Update Ak's Approval</p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <label htmlFor="bulkApprovalStatus" className="sr-only">AK Approval Status</label>
+                <select
+                  id="bulkApprovalStatus"
+                  value={bulkApprovalStatus ?? ''}
+                  onChange={(e) => setBulkApprovalStatus(e.target.value as AkApprovalStatus)}
+                  className="rounded-md border border-gray-custom-300 bg-white px-3 py-2 text-sm text-gray-custom-900 focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select AK approval</option>
+                  {AK_APPROVAL_OPTIONS.map(status => (
+                    <option key={status} value={status}>{status}</option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleBulkUpdate}
+                  disabled={!bulkApprovalStatus || bulkUpdating}
+                  className="min-w-[180px] rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {bulkUpdating ? 'Applying...' : 'Apply to selected'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mt-6">
           {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
           {loading ? (
@@ -455,6 +543,9 @@ const AllPaymentsTable = ({
   onFilterChange,
   sortBy,
   sortDir,
+  selectedPaymentIds,
+  onSelectPayment,
+  onSelectAll,
 }: { 
   payments: PaymentListItem[]; 
   isAdmin: boolean; 
@@ -465,12 +556,30 @@ const AllPaymentsTable = ({
   onFilterChange: (column: string, values: string[]) => void;
   sortBy: string;
   sortDir: 'asc' | 'desc';
+  selectedPaymentIds: Set<string | number>;
+  onSelectPayment: (id: string | number, checked: boolean) => void;
+  onSelectAll: (checked: boolean) => void;
 }) => {
+    const allSelected = payments.length > 0 && payments.every(p => selectedPaymentIds.has(p.id));
+    const someSelected = payments.some(p => selectedPaymentIds.has(p.id));
     return (
         <div className="overflow-x-auto">
             <table className="w-full min-w-[1200px] text-left">
                 <thead className="bg-gray-custom-50">
                     <tr className="border-b border-gray-custom-200">
+                      <th className="p-3 text-sm font-semibold text-gray-custom-500">
+                         <label htmlFor="">Select ALL</label>
+                          <input
+                            type="checkbox"
+                            checked={allSelected}
+                            ref={(el) => {
+                              if (el) el.indeterminate = someSelected && !allSelected;
+                            }}
+                            onChange={(e) => onSelectAll(e.target.checked)}
+                            className="rounded ml-5 border-gray-custom-300"
+                          />
+                         
+                        </th>
                         <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
                           <ColumnFilterMenu
                             label="Student Name"
@@ -594,6 +703,14 @@ const AllPaymentsTable = ({
                 <tbody className="bg-white divide-y divide-gray-200">
                     {payments.map(p => (
                         <tr key={p.id}>
+                            <td className="p-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedPaymentIds.has(p.id)}
+                                onChange={(e) => onSelectPayment(p.id, e.target.checked)}
+                                className="rounded ml-5 border-gray-custom-300"
+                              />
+                            </td>
                             <StudentCell studentId={p.student_id} paymentId={p.id} />
                             <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
                             {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}

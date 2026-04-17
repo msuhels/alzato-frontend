@@ -13,6 +13,11 @@ import { paymentsService, PaymentListItem } from '../services/payments';
 import { studentsService, StudentListItem } from '../services/students';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const YEARS = Array.from({ length: 2040 - 2020 + 1 }, (_, i) => 2020 + i); // 2020 → 2040
+
+const selectCls = 'rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary';
+
 const DashboardPage = () => {
     const [payments, setPayments] = useState<PaymentListItem[]>([]);
     const [students, setStudents] = useState<StudentListItem[]>([]);
@@ -49,53 +54,73 @@ const DashboardPage = () => {
     const totalStudents = useMemo(() => students.length, [students]);
 
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const [selectedMonthStart, setSelectedMonthStart] = useState<Date>(startOfMonth);
+    // selectedMonth: null = All Months, 0–11 = specific month
+    const [selectedMonth, setSelectedMonth] = useState<number | null>(today.getMonth());
     const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
-    const nextMonthStart = useMemo(() => new Date(today.getFullYear(), today.getMonth() + 1, 1), [today]);
-    const selectedMonthLabel = useMemo(
-        () => selectedMonthStart.toLocaleString('en-IN', { month: 'long', year: 'numeric' }),
-        [selectedMonthStart]
+
+    // Derived period boundaries based on selectedMonth + selectedYear
+    const periodStart = useMemo(() =>
+        selectedMonth === null
+            ? new Date(selectedYear, 0, 1)           // Jan 1 of year
+            : new Date(selectedYear, selectedMonth, 1),
+        [selectedMonth, selectedYear]
+    );
+    const periodEnd = useMemo(() =>
+        selectedMonth === null
+            ? new Date(selectedYear + 1, 0, 1)       // Jan 1 of next year
+            : new Date(selectedYear, selectedMonth + 1, 1),
+        [selectedMonth, selectedYear]
+    );
+    // Previous period for comparison (prev month or prev year)
+    const prevPeriodStart = useMemo(() =>
+        selectedMonth === null
+            ? new Date(selectedYear - 1, 0, 1)
+            : new Date(selectedYear, selectedMonth - 1, 1),
+        [selectedMonth, selectedYear]
+    );
+    const prevPeriodEnd = useMemo(() => periodStart, [periodStart]);
+
+    // Label shown in card titles
+    const periodLabel = useMemo(() =>
+        selectedMonth === null
+            ? String(selectedYear)
+            : `${MONTHS[selectedMonth]} ${selectedYear}`,
+        [selectedMonth, selectedYear]
+    );
+    // Keep selectedMonthStart as a derived Date for chart compatibility
+    const selectedMonthStart = useMemo(() => periodStart, [periodStart]);
+    const selectedMonthLabel = useMemo(() => periodLabel, [periodLabel]);
+
+    // Yearly revenue filtered by selectedYear
+    const netRevenueThisYear = useMemo(
+        () => payments
+            .filter(p => p.installment_date && new Date(p.installment_date).getFullYear() === selectedYear)
+            .reduce((sum, p) => sum + (p.amount || 0), 0) * 1000,
+        [payments, selectedYear]
     );
 
-    // Year-to-date (YTD) net revenue from students using intake_year == current year
-    const currentYear = today.getFullYear();
-    const studentsThisYear = useMemo(
-        () => students.filter(s => {
-            const yr = s.intake_year ? parseInt(String(s.intake_year), 10) : undefined;
-            return Number.isFinite(yr) && (yr as number) === currentYear;
-        }),
-        [students, currentYear]
-    );
-    const receivedAmountThisYear = useMemo(() => studentsThisYear.reduce((sum, s) => sum + (s.recieved_amount ?? s.received_amount ?? 0), 0) * 1000, [studentsThisYear]);
-    const netRevenueThisYear = useMemo(() => {
-        // Use received_amount (total revenue received) instead of net_amount (remaining to be paid)
-        return receivedAmountThisYear;
-    }, [receivedAmountThisYear]);
-
+    // Period payments (month or full year depending on selectedMonth)
     const paymentsThisMonthAll = useMemo(
         () => payments.filter(p => {
             const d = new Date(p.installment_date);
-            return d >= startOfMonth && d < nextMonthStart;
+            return d >= periodStart && d < periodEnd;
         }),
-        [payments, startOfMonth, nextMonthStart]
+        [payments, periodStart, periodEnd]
     );
     const receivedAmountThisMonth = useMemo(() => paymentsThisMonthAll.reduce((sum, p) => sum + (p.amount || 0), 0) * 1000, [paymentsThisMonthAll]);
     const netRevenueThisMonth = useMemo(() => receivedAmountThisMonth, [receivedAmountThisMonth]);
 
-    // Previous month period
-    const prevMonthStart = useMemo(() => new Date(today.getFullYear(), today.getMonth() - 1, 1), [today]);
+    // Previous period payments for comparison
     const prevMonthPayments = useMemo(
         () => payments.filter(p => {
             const d = new Date(p.installment_date);
-            return d >= prevMonthStart && d < startOfMonth;
+            return d >= prevPeriodStart && d < prevPeriodEnd;
         }),
-        [payments, prevMonthStart, startOfMonth]
+        [payments, prevPeriodStart, prevPeriodEnd]
     );
-    const prevReceivedAmount = useMemo(() => prevMonthPayments.reduce((s, p) => s + (p.amount || 0), 0) * 1000, [prevMonthPayments]);
-    const prevNetRevenue = useMemo(() => prevReceivedAmount, [prevReceivedAmount]);
+    const prevNetRevenue = useMemo(() => prevMonthPayments.reduce((s, p) => s + (p.amount || 0), 0) * 1000, [prevMonthPayments]);
 
-    // Net revenue this month vs last month percent
+    // Revenue % change vs previous period
     const netRevenueMoM = useMemo(() => {
         if (prevNetRevenue === 0) {
             if (netRevenueThisMonth === 0) return { text: '0%', type: 'increase' as const };
@@ -107,14 +132,14 @@ const DashboardPage = () => {
         return { text, type } as const;
     }, [netRevenueThisMonth, prevNetRevenue]);
 
-    // New students this month and last month
-    const studentsPrevMonth = useMemo(
-        () => students.filter(s => s.created_at && new Date(s.created_at) >= prevMonthStart && new Date(s.created_at) < startOfMonth),
-        [students, prevMonthStart, startOfMonth]
-    );
+    // New students in selected period
     const studentsThisMonth = useMemo(
-        () => students.filter(s => s.created_at && new Date(s.created_at) >= startOfMonth),
-        [students, startOfMonth]
+        () => students.filter(s => s.created_at && new Date(s.created_at) >= periodStart && new Date(s.created_at) < periodEnd),
+        [students, periodStart, periodEnd]
+    );
+    const studentsPrevMonth = useMemo(
+        () => students.filter(s => s.created_at && new Date(s.created_at) >= prevPeriodStart && new Date(s.created_at) < prevPeriodEnd),
+        [students, prevPeriodStart, prevPeriodEnd]
     );
     const newStudentsCountThisMonth = useMemo(() => studentsThisMonth.length, [studentsThisMonth]);
     const newStudentsCountPrevMonth = useMemo(() => studentsPrevMonth.length, [studentsPrevMonth]);
@@ -128,12 +153,13 @@ const DashboardPage = () => {
         const text = `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`;
         return { text, type } as const;
     }, [newStudentsCountThisMonth, newStudentsCountPrevMonth]);
-    // Note: handled below with newStudentsCountThisMonth/newStudentsMoM
 
-    const recentPayments = useMemo(() => payments.slice(0, 5).map(p => ({
+    const recentPayments = useMemo(() => payments.map(p => ({
         id: String(p.id),
         studentId: String(p.student_id),
         amount: (p.amount || 0) * 1000, // Convert from thousands to actual amount
+        created_at: p.created_at,
+        payment_recieved_in: p.payment_recieved_in,
         date: p.installment_date,
         payment_type: p.payment_type,
     })), [payments]);
@@ -156,9 +182,45 @@ const DashboardPage = () => {
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-custom-900">Welcome back, Admin!</h1>
-                <p className="text-gray-custom-500 mt-1">Here's a snapshot of your institution's performance.</p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-custom-900">Welcome back, Admin!</h1>
+                    <p className="text-gray-custom-500 mt-1">Here's a snapshot of your institution's performance.</p>
+                </div>
+                {/* ── Filters (right side) ── */}
+                <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-gray-200 self-start">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-custom-500">Month</span>
+                        <select
+                            value={selectedMonth === null ? 'all' : selectedMonth}
+                            onChange={e => setSelectedMonth(e.target.value === 'all' ? null : Number(e.target.value))}
+                            className={selectCls}
+                        >
+                            <option value="all">All Months</option>
+                            {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                        </select>
+                    </div>
+                    <div className="h-4 w-px bg-gray-200" />
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-custom-500">Year</span>
+                        <select
+                            value={selectedYear}
+                            onChange={e => setSelectedYear(Number(e.target.value))}
+                            className={`${selectCls} w-24`}
+                        >
+                            {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setSelectedMonth(today.getMonth());
+                            setSelectedYear(today.getFullYear());
+                        }}
+                        className="rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-gray-custom-500 hover:bg-gray-custom-50 transition-colors"
+                    >
+                        Reset
+                    </button>
+                </div>
             </div>
 
             {/* Stat Cards + Students by Zone */}
@@ -174,17 +236,17 @@ const DashboardPage = () => {
                             changeType="increase"
                             showChange={false}
                         />
-                        <StatCard 
+                        <StatCard
                             icon={CreditCard}
-                            title="Net Revenue This Month"
+                            title={`Revenue – ${selectedMonthLabel}`}
                             value={formatINR(netRevenueThisMonth)}
-                            subText={`Total: ${formatINR(receivedAmountThisMonth)}`}
+                            subText={`vs prev month: ${formatINR(prevNetRevenue)}`}
                             change={netRevenueMoM.text}
                             changeType={netRevenueMoM.type}
                         />
-                        <StatCard 
+                        <StatCard
                             icon={UserPlus}
-                            title="New Students This Month"
+                            title={`New Students – ${selectedMonthLabel}`}
                             value={newStudentsCountThisMonth.toString()}
                             change={newStudentsMoM.text}
                             changeType={newStudentsMoM.type}
@@ -192,9 +254,9 @@ const DashboardPage = () => {
                         />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <StatCard 
+                        <StatCard
                             icon={IndianRupee}
-                            title="Yearly Net Revenue"
+                            title={`Net Revenue – ${selectedYear}`}
                             value={formatINR(netRevenueThisYear)}
                             change=""
                             changeType="increase"
@@ -228,7 +290,7 @@ const DashboardPage = () => {
                     <YearlyRevenueChart 
                         payments={receivedPaymentsForChart.map(p => ({ date: p.installment_date, amount: (p.amount || 0) * 1000 }))}
                         payouts={[]}
-                        onMonthSelect={(m) => setSelectedMonthStart(m)}
+                        onMonthSelect={(m) => { setSelectedMonth(m.getMonth()); setSelectedYear(m.getFullYear()); }}
                     />
                 </div>
                 <div className="md:col-span-1 lg:col-span-1 rounded-xl bg-white/90 backdrop-blur p-6 shadow-sm ring-1 ring-gray-200">
@@ -256,7 +318,7 @@ const DashboardPage = () => {
 
             {/* Recent Payments */}
             <div className="rounded-lg bg-white p-6 shadow-sm">
-                 <h2 className="text-lg font-semibold text-gray-custom-900 mb-4">Recent Payments</h2>
+                
                  <RecentPayments payments={recentPayments} studentMap={studentMap} />
             </div>
         </div>
