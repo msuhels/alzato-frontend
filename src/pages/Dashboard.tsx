@@ -154,6 +154,12 @@ const DashboardPage = () => {
         return { text, type } as const;
     }, [newStudentsCountThisMonth, newStudentsCountPrevMonth]);
 
+    // Students in selected period for zone chart
+    const studentsThisPeriod = useMemo(
+        () => students.filter(s => s.created_at && new Date(s.created_at) >= periodStart && new Date(s.created_at) < periodEnd),
+        [students, periodStart, periodEnd]
+    );
+
     const recentPayments = useMemo(() => payments.map(p => ({
         id: String(p.id),
         studentId: String(p.student_id),
@@ -275,9 +281,9 @@ const DashboardPage = () => {
                 </div>
                 <div className="rounded-xl bg-white/90 backdrop-blur p-6 shadow-sm ring-1 ring-gray-200 h-full flex flex-col">
                     <h2 className="text-lg font-semibold text-gray-custom-900 mb-1">Students by Zone</h2>
-                    <p className="text-sm text-gray-custom-500 mb-3">Total students per zone</p>
+                    <p className="text-sm text-gray-custom-500 mb-3">{selectedMonthLabel}</p>
                     <div className="flex-1">
-                        <StudentsByZoneChart students={students} />
+                        <StudentsByZoneChart students={studentsThisPeriod} />
                     </div>
                 </div>
             </div>
