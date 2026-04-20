@@ -37,11 +37,13 @@ const RecentPayments = ({ payments, studentMap }: RecentPaymentsProps) => {
     ),
   ];
 
-  // ✅ Sort (latest first)
+  // ✅ Sort by payment date (latest first)
   const sortedPayments = useMemo(() => {
+    const getDate = (payment: RecentPayment) =>
+      new Date(payment.date || payment.created_at).getTime();
+
     return [...payments].sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      (a, b) => getDate(b) - getDate(a),
     );
   }, [payments]);
 
