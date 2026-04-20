@@ -10,13 +10,19 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
-  server: {
-    proxy: {
-      '/api': {
-        target: 'https://student-management.italycoursefinder.com',
-        changeOrigin: true,
-        secure: false,
-      },
+ server: {
+  host: true,                    // ← ADDED
+  port: 5173,                    // ← ADDED
+  allowedHosts: [                // ← ADDED (this fixes your error)
+    'student-management.italycoursefinder.com',
+    '.italycoursefinder.com',
+  ],
+  proxy: {
+    '/api': {
+      target: 'https://student-management.italycoursefinder.com',
+      changeOrigin: true,
+      secure: false,
     },
   },
+},
 });
