@@ -13,7 +13,7 @@ type SidebarProps = {
 const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { logout, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
-
+  console.log('Sidebar rendered with user:');
   useEffect(() => {
     let isMounted = true;
 
