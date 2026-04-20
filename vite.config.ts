@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://student-management-backend.italycoursefinder.com',
+        target: 'https://student-management.italycoursefinder.com',
         changeOrigin: true,
         secure: false,
       },
