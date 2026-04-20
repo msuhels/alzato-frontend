@@ -29,7 +29,7 @@ const RemarksTooltip = ({ remarks }: { remarks?: string }) => {
   return (
     <div className="group relative flex items-center gap-1">
       <Info size={16} className="text-gray-custom-500 cursor-pointer" />
-      <div className=" items-center rounded-md bg-gray-custom-800  text-[15px] text-black ">
+      <div className=" items-center rounded-md text-[15px] text-black p-2">
         {remarks}
       </div>
     </div>
