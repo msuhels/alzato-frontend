@@ -114,6 +114,7 @@ export const PAYMENT_RECEIVED_IN_OPTIONS = [
   'Alzato Canada',
   'Alzato UK',
   'Apoorv Kohli',
+  'Dream Italy',
   'Others',
   'Cash',
 ];
