@@ -39,6 +39,7 @@ const PaymentsPage = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [bankFilter, setBankFilter] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   
@@ -64,6 +65,35 @@ const PaymentsPage = () => {
       console.warn('Failed to save filters to localStorage', e);
     }
   }, [columnFilters]);
+
+  // Handle date range filter changes
+  const handleDateRangeChange = (filter: 'all' | 'today' | 'week' | 'month') => {
+    setDateRangeFilter(filter);
+    setCurrentPage(1);
+
+    if (filter === 'all') {
+      setDateFrom('');
+      setDateTo('');
+    } else {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (filter === 'today') {
+        const dateStr = today.toISOString().split('T')[0];
+        setDateFrom(dateStr);
+        setDateTo(dateStr);
+      } else if (filter === 'week') {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+        setDateFrom(weekStart.toISOString().split('T')[0]);
+        setDateTo(today.toISOString().split('T')[0]);
+      } else if (filter === 'month') {
+        const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+        setDateFrom(monthStart.toISOString().split('T')[0]);
+        setDateTo(today.toISOString().split('T')[0]);
+      }
+    }
+  };
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -210,6 +240,11 @@ const PaymentsPage = () => {
 
   const handleClearAllFilters = () => {
     setColumnFilters({});
+    setSearchText('');
+    setDateFrom('');
+    setDateTo('');
+    setBankFilter('');
+    setDateRangeFilter('all');
     setCurrentPage(1);
     try {
       localStorage.removeItem('payments-column-filters');
@@ -219,8 +254,13 @@ const PaymentsPage = () => {
   };
 
   const hasActiveFilters = useMemo(() => {
-    return Object.values(columnFilters).some(values => values && values.length > 0);
-  }, [columnFilters]);
+    return Object.values(columnFilters).some(values => values && values.length > 0) ||
+           searchText.trim() !== '' ||
+           dateFrom !== '' ||
+           dateTo !== '' ||
+           bankFilter !== '' ||
+           dateRangeFilter !== 'all';
+  }, [columnFilters, searchText, dateFrom, dateTo, bankFilter, dateRangeFilter]);
 
   const handleSort = (column: string, dir?: 'asc' | 'desc') => {
     if (dir) {
@@ -312,7 +352,8 @@ const PaymentsPage = () => {
       <div className="rounded-lg bg-white p-6 shadow-sm">
         {/* Filters */}
         <div className="flex items-end justify-between mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 flex-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
+
           <div>
             <label htmlFor="searchInput" className="block text-sm font-medium text-gray-custom-700 mb-1">Search</label>
             <input
@@ -327,6 +368,7 @@ const PaymentsPage = () => {
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+
           <div>
             <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-custom-700 mb-1">From Date</label>
             <input
@@ -337,6 +379,7 @@ const PaymentsPage = () => {
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+
           <div>
             <label htmlFor="dateTo" className="block text-sm font-medium text-gray-custom-700 mb-1">To Date</label>
             <input
@@ -347,6 +390,7 @@ const PaymentsPage = () => {
               className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+
           <div>
             <label htmlFor="bankFilter" className="block text-sm font-medium text-gray-custom-700 mb-1">Bank</label>
             <select
@@ -360,8 +404,24 @@ const PaymentsPage = () => {
                 <option key={bank} value={bank}>{bank}</option>
               ))}
             </select>
-          </div>
-          </div>
+          </div> 
+
+          <div>
+            <label htmlFor="dateRange" className="block text-sm font-medium text-gray-custom-700 mb-1">Date Range</label>
+            <select
+              id="dateRange"
+              value={dateRangeFilter}
+              onChange={(e) => handleDateRangeChange(e.target.value as 'all' | 'today' | 'week' | 'month')}
+              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">All</option>
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+            </select>
+          </div>   
+
+         </div>
           {hasActiveFilters && (
             <button
               onClick={handleClearAllFilters}
