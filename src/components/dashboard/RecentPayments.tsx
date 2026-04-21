@@ -120,6 +120,13 @@ const filteredPayments = useMemo(() => {
   };
 }, [payments]);
 
+
+const totalPayment = useMemo(() => {
+  return filteredPayments.reduce((sum, payment) => {
+    return sum + (payment.amount || 0);
+  }, 0);
+}, [filteredPayments]);
+
   return (
     <div className="overflow-x-auto">
       <h2 className=" mb-5 text-lg font-semibold text-gray-800">Recent Payments</h2>
@@ -205,8 +212,10 @@ const filteredPayments = useMemo(() => {
         </div>
 
 
-
         
+      </div>
+      <div>
+        <h1 className="pb-4">Total Payments: {formatINR(totalPayment)}</h1>
       </div>
 
 
