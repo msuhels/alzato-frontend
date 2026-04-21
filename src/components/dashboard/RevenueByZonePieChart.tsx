@@ -93,7 +93,7 @@ const RevenueByZonePieChart = ({ payments, studentMap, monthStart, year }: Reven
     legend: {
       orient: 'horizontal',
       left: 'center',
-      bottom: 0,
+      bottom: -10,
       textStyle: { color: '#4B5563' },
       formatter: (name: string) => {
         const value = byZoneNet[name] || 0;
@@ -105,12 +105,12 @@ const RevenueByZonePieChart = ({ payments, studentMap, monthStart, year }: Reven
         name: 'Revenue by Zone',
         type: 'pie',
         radius: ['46%', '70%'],
-        center: ['50%', '45%'],
+        center: ['50%', '42%'],
         avoidLabelOverlap: false,
         label: { show: false, position: 'center' },
         emphasis: {
           scale: true,
-          scaleSize: 8,
+          scaleSize: 5,
           label: { show: true, fontSize: 18, fontWeight: 'bold' }
         },
         labelLine: { show: false },
@@ -121,7 +121,7 @@ const RevenueByZonePieChart = ({ payments, studentMap, monthStart, year }: Reven
     color: colors,
   };
 
-  return <ReactECharts option={option} style={{ height: '340px' }} />;
+  return <ReactECharts option={option} style={{ height: '360px' }} />;
 };
 
 export default RevenueByZonePieChart;

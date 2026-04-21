@@ -23,7 +23,7 @@ const StatCard = ({ icon: Icon, title, value, change, changeType, subText, showC
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wide text-gray-custom-500">{title}</p>
-          <p className={`mt-1 font-bold text-gray-custom-900 ${isSmall ? 'text-2xl' : 'text-3xl'}`}>{value}</p>
+          <p className={`mt-1 font-bold text-gray-custom-900 ${isSmall ? 'text-xl' : 'text-2xl'}`}>{value}</p>
           {subText ? (
             <p className="text-xs text-gray-custom-500 mt-1">{subText}</p>
           ) : null}
