@@ -19,11 +19,11 @@ const StatCard = ({ icon: Icon, title, value, change, changeType, subText, showC
   const isSmall = size === 'sm';
 
   return (
-    <div className={`h-full min-w-0 ${isSmall ? 'min-h-[150px]' : 'min-h-[170px]'} overflow-hidden rounded-xl bg-white/90 backdrop-blur shadow-sm ring-1 ring-gray-200 hover:shadow-md transition-shadow ${isSmall ? 'p-3' : 'p-5'}`}>
+    <div className={`h-full min-w-0 ${isSmall ? 'min-h-[240px]' : 'min-h-[240px]'} overflow-hidden rounded-xl bg-white/90 backdrop-blur shadow-sm ring-1 ring-gray-200 hover:shadow-md transition-shadow ${isSmall ? 'p-3' : 'p-5'}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wide text-gray-custom-500">{title}</p>
-          <p className={`mt-1 font-bold text-gray-custom-900 ${isSmall ? 'text-xl' : 'text-2xl'}`}>{value}</p>
+          <p className={`mt-1 font-bold text-gray-custom-900 ${isSmall ? 'text-2xl' : 'text-2xl'}`}>{value}</p>
           {subText ? (
             <p className="text-xs text-gray-custom-500 mt-1">{subText}</p>
           ) : null}

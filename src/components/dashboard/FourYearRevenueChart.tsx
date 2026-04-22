@@ -118,7 +118,7 @@ const FourYearRevenueChart = ({ payments, payouts = [], onYearSelect }: FourYear
     },
   } as any;
 
-  return <ReactECharts option={option} onEvents={onEvents} style={{ height: '300px' }} />;
+  return <ReactECharts option={option} onEvents={onEvents} style={{ height: '400px' }} />;
 };
 
 export default FourYearRevenueChart;
