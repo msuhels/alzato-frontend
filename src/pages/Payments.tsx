@@ -346,6 +346,14 @@ const PaymentsPage = () => {
     );
   };
 
+  
+const totalPaymentAmount = useMemo(() => {
+  return payments.reduce(
+    (sum, p) => sum + Number(p.amount || 0) * 1000,
+    0
+  );
+}, [payments]);
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-custom-900 mb-6">All Payments</h1>
@@ -431,6 +439,7 @@ const PaymentsPage = () => {
             </button>
           )}
         </div>
+        <h1>Total payment amount: {formatINR(totalPaymentAmount)}</h1>
         {/* Tabs hidden per request; showing all payments only */}
         {/* <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
