@@ -66,7 +66,7 @@ const StudentsByZoneChart = ({ students }: StudentsByZoneChartProps) => {
     color: ['#F97316', '#1E3A8A', '#6D28D9', '#10B981', '#EF4444']
   };
 
-  return <ReactECharts option={option} style={{ height: '260px' }} />;
+  return <ReactECharts option={option} style={{ height: '400px' }} />;
 };
 
 export default StudentsByZoneChart;

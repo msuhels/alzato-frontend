@@ -33,13 +33,7 @@ const RevenueByZonePieChart = ({ payments, studentMap, monthStart, year }: Reven
     const m = monthStart?.getMonth();
 
     payments.forEach(p => {
-      const d = parseDateLocal(p.installment_date);
-      // If monthStart provided: filter by that month; else include whole selected year
-      if (monthStart) {
-        if (d.getFullYear() !== y || d.getMonth() !== m) return;
-      } else {
-        if (d.getFullYear() !== y) return;
-      }
+     
       const student = studentMap.get(String(p.student_id));
       const zone = (student?.zone || 'Unknown').trim() || 'Unknown';
       const isPayout = (p.payment_type || '').toLowerCase() === 'payout';
