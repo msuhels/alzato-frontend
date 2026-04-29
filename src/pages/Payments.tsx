@@ -32,7 +32,7 @@ const PaymentsPage = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | number | null>(null);
-  
+
 
   // Filters / Sorting
   const [searchText, setSearchText] = useState('');
@@ -42,7 +42,7 @@ const PaymentsPage = () => {
   const [dateRangeFilter, setDateRangeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [sortBy, setSortBy] = useState<string>('');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  
+
   // Load column filters from localStorage on mount
   const [columnFilters, setColumnFilters] = useState<Record<string, string[]>>(() => {
     try {
@@ -128,21 +128,21 @@ const PaymentsPage = () => {
       const { items, total } = await paymentsService.list(params);
       setPayments(items);
       setTotal(total || 0);
-      
+
       // Load students for display (only for current page payments)
       const studentIds = Array.from(new Set(items.map(p => p.student_id).filter(Boolean)));
       if (studentIds.length > 0) {
-        // Fetch students in batches if needed
-        const { items: students } = await studentsService.list({ 
-          limit: 10000, // Large limit to get all students
-          offset: 0, 
-          q: undefined 
+        // Fetch only the students needed for this page
+        const { items: students } = await studentsService.list({
+          limit: studentIds.length,
+          offset: 0,
+          ids: studentIds
         });
-        
+
         // Update student map with fetched students
         students.forEach(s => studentMap.set(s.id, s));
       }
-      
+
     } catch (e: any) {
       setError(e?.response?.data?.error || 'Failed to load payments');
       setPayments([]);
@@ -225,7 +225,7 @@ const PaymentsPage = () => {
   // All filtering is now done on the backend
   // Payments returned from backend are already filtered and sorted
   const filteredPayments = payments;
-  
+
   const totalPages = Math.max(1, Math.ceil(total / itemsPerPage));
 
   // const handleTabChange = (tab: PaymentTab) => {
@@ -255,11 +255,11 @@ const PaymentsPage = () => {
 
   const hasActiveFilters = useMemo(() => {
     return Object.values(columnFilters).some(values => values && values.length > 0) ||
-           searchText.trim() !== '' ||
-           dateFrom !== '' ||
-           dateTo !== '' ||
-           bankFilter !== '' ||
-           dateRangeFilter !== 'all';
+      searchText.trim() !== '' ||
+      dateFrom !== '' ||
+      dateTo !== '' ||
+      bankFilter !== '' ||
+      dateRangeFilter !== 'all';
   }, [columnFilters, searchText, dateFrom, dateTo, bankFilter, dateRangeFilter]);
 
   const handleSort = (column: string, dir?: 'asc' | 'desc') => {
@@ -282,7 +282,7 @@ const PaymentsPage = () => {
   //   { name: 'Other', label: 'Other', count: filteredCounts.other },
   // ];
 
-  
+
   const handleSelectPayment = (id: string | number, checked: boolean) => {
     setSelectedPaymentIds(prev => {
       const newSet = new Set(prev);
@@ -295,7 +295,7 @@ const PaymentsPage = () => {
     });
   };
 
-    const handleSelectAll = (checked: boolean) => {
+  const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedPaymentIds(new Set(payments.map(p => p.id)));
     } else {
@@ -303,7 +303,7 @@ const PaymentsPage = () => {
     }
   };
 
-    const handleBulkUpdate = async () => {
+  const handleBulkUpdate = async () => {
     if (!bulkApprovalStatus || selectedPaymentIds.size === 0) return;
     setBulkUpdating(true);
     try {
@@ -346,13 +346,13 @@ const PaymentsPage = () => {
     );
   };
 
-  
-const totalPaymentAmount = useMemo(() => {
-  return payments.reduce(
-    (sum, p) => sum + Number(p.amount || 0) * 1000,
-    0
-  );
-}, [payments]);
+
+  const totalPaymentAmount = useMemo(() => {
+    return payments.reduce(
+      (sum, p) => sum + Number(p.amount || 0) * 1000,
+      0
+    );
+  }, [payments]);
 
   return (
     <div>
@@ -362,74 +362,74 @@ const totalPaymentAmount = useMemo(() => {
         <div className="flex items-end justify-between mb-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 flex-1">
 
-          <div>
-            <label htmlFor="searchInput" className="block text-sm font-medium text-gray-custom-700 mb-1">Search</label>
-            <input
-              type="text"
-              id="searchInput"
-              value={searchText}
-              onChange={(e) => { 
-                setSearchText(e.target.value); 
-                setCurrentPage(1); 
-              }}
-              placeholder="Search (student, enrollment, purpose, remarks, accounting remarks)"
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div>
+              <label htmlFor="searchInput" className="block text-sm font-medium text-gray-custom-700 mb-1">Search</label>
+              <input
+                type="text"
+                id="searchInput"
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Search (student, enrollment, purpose, remarks, accounting remarks)"
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-custom-700 mb-1">From Date</label>
+              <input
+                type="date"
+                id="dateFrom"
+                value={dateFrom}
+                onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="dateTo" className="block text-sm font-medium text-gray-custom-700 mb-1">To Date</label>
+              <input
+                type="date"
+                id="dateTo"
+                value={dateTo}
+                onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="bankFilter" className="block text-sm font-medium text-gray-custom-700 mb-1">Bank</label>
+              <select
+                id="bankFilter"
+                value={bankFilter}
+                onChange={(e) => { setBankFilter(e.target.value); setCurrentPage(1); }}
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="">All Banks</option>
+                {PAYMENT_RECEIVED_IN_OPTIONS.map(bank => (
+                  <option key={bank} value={bank}>{bank}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="dateRange" className="block text-sm font-medium text-gray-custom-700 mb-1">Date Range</label>
+              <select
+                id="dateRange"
+                value={dateRangeFilter}
+                onChange={(e) => handleDateRangeChange(e.target.value as 'all' | 'today' | 'week' | 'month')}
+                className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="all">All</option>
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+              </select>
+            </div>
+
           </div>
-
-          <div>
-            <label htmlFor="dateFrom" className="block text-sm font-medium text-gray-custom-700 mb-1">From Date</label>
-            <input
-              type="date"
-              id="dateFrom"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="dateTo" className="block text-sm font-medium text-gray-custom-700 mb-1">To Date</label>
-            <input
-              type="date"
-              id="dateTo"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="bankFilter" className="block text-sm font-medium text-gray-custom-700 mb-1">Bank</label>
-            <select
-              id="bankFilter"
-              value={bankFilter}
-              onChange={(e) => { setBankFilter(e.target.value); setCurrentPage(1); }}
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Banks</option>
-              {PAYMENT_RECEIVED_IN_OPTIONS.map(bank => (
-                <option key={bank} value={bank}>{bank}</option>
-              ))}
-            </select>
-          </div> 
-
-          <div>
-            <label htmlFor="dateRange" className="block text-sm font-medium text-gray-custom-700 mb-1">Date Range</label>
-            <select
-              id="dateRange"
-              value={dateRangeFilter}
-              onChange={(e) => handleDateRangeChange(e.target.value as 'all' | 'today' | 'week' | 'month')}
-              className="w-full rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">All</option>
-              <option value="today">Today</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-            </select>
-          </div>   
-
-         </div>
           {hasActiveFilters && (
             <button
               onClick={handleClearAllFilters}
@@ -553,51 +553,51 @@ const ApprovalStatusBadge = ({ status }: { status: AkApprovalStatus }) => {
 }
 
 const StudentCell = ({ studentId, paymentId }: { studentId: string | number; paymentId?: string | number }) => {
-    const student = studentMap.get(studentId);
-    if (!student) {
-      console.warn(`Student not found for ID: ${studentId} (type: ${typeof studentId})`);
-      console.log('Available student IDs:', Array.from(studentMap.keys()));
-      return <td className="p-3 text-gray-custom-600">Unknown Student</td>;
-    }
+  const student = studentMap.get(studentId);
+  if (!student) {
+    console.warn(`Student not found for ID: ${studentId} (type: ${typeof studentId})`);
+    console.log('Available student IDs:', Array.from(studentMap.keys()));
+    return <td className="p-3 text-gray-custom-600">Unknown Student</td>;
+  }
 
-    return (
-        <td className="p-3">
-            <Link to={`/students/${student.id}`} state={paymentId ? { highlightPaymentId: paymentId } : undefined} className="group flex items-center gap-3">
-                <div className="font-medium text-gray-custom-800 group-hover:text-primary group-hover:underline">{student.name}</div>
-            </Link>
-        </td>
-    );
+  return (
+    <td className="p-3">
+      <Link to={`/students/${student.id}`} state={paymentId ? { highlightPaymentId: paymentId } : undefined} className="group flex items-center gap-3">
+        <div className="font-medium text-gray-custom-800 group-hover:text-primary group-hover:underline">{student.name}</div>
+      </Link>
+    </td>
+  );
 };
 
 const PaginationControls = ({ currentPage, totalPages, onPageChange, totalItems, itemsPerPage }: any) => {
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+  const startItem = (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
 
-    return (
-        <div className="flex items-center justify-between pt-4 mt-4 border-t">
-          <p className="text-sm text-gray-custom-600">
-            Showing {startItem}-{endItem} of {totalItems}
-          </p>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="flex items-center gap-1 rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-gray-custom-600 hover:bg-gray-custom-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={16} />
-              Previous
-            </button>
-            <button 
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="flex items-center gap-1 rounded-md border bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-    );
+  return (
+    <div className="flex items-center justify-between pt-4 mt-4 border-t">
+      <p className="text-sm text-gray-custom-600">
+        Showing {startItem}-{endItem} of {totalItems}
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="flex items-center gap-1 rounded-md border bg-white px-3 py-1.5 text-sm font-medium text-gray-custom-600 hover:bg-gray-custom-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft size={16} />
+          Previous
+        </button>
+        <button
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="flex items-center gap-1 rounded-md border bg-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // --- Table Components ---
@@ -615,9 +615,9 @@ const AllPaymentsTable = ({
   selectedPaymentIds,
   onSelectPayment,
   onSelectAll,
-}: { 
-  payments: PaymentListItem[]; 
-  isAdmin: boolean; 
+}: {
+  payments: PaymentListItem[];
+  isAdmin: boolean;
   onDelete: (id: string | number) => void;
   onSort: (column: string, dir?: 'asc' | 'desc') => void;
   columnOptions: Record<string, string[]>;
@@ -629,47 +629,47 @@ const AllPaymentsTable = ({
   onSelectPayment: (id: string | number, checked: boolean) => void;
   onSelectAll: (checked: boolean) => void;
 }) => {
-    const allSelected = payments.length > 0 && payments.every(p => selectedPaymentIds.has(p.id));
-    return (
-        <div className="overflow-x-auto">
-            <table className="w-full min-w-[1200px] text-left">
-                <thead className="bg-gray-custom-50">
-                    <tr className="border-b border-gray-custom-200">
-                      <th className="p-3 text-sm font-semibold text-gray-custom-500">
-                         <label htmlFor="">Select ALL</label>
-                          <input
-                            type="checkbox"
-                            checked={allSelected}
-                            onChange={(e) => onSelectAll(e.target.checked)}
-                            className="rounded ml-5 border-gray-custom-300"
-                          />
-                         
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Student Name"
-                            options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
-                            onSort={(dir) => onSort('student_name', dir)}
-                            sortDir={sortBy === 'student_name' ? sortDir : null}
-                            enableOptions={false}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Date"
-                            options={[]}
-                            selectedValues={columnFilters.date || []}
-                            onApply={(values) => onFilterChange('date', values)}
-                            onSort={(dir) => onSort('date', dir)}
-                            sortDir={sortBy === 'date' ? sortDir : null}
-                            enableOptions={false}
-                            isDate
-                            rangeType="date"
-                          />
-                        </th>
-                        {/* <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+  const allSelected = payments.length > 0 && payments.every(p => selectedPaymentIds.has(p.id));
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1200px] text-left">
+        <thead className="bg-gray-custom-50">
+          <tr className="border-b border-gray-custom-200">
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">
+              <label htmlFor="">Select ALL</label>
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={(e) => onSelectAll(e.target.checked)}
+                className="rounded ml-5 border-gray-custom-300"
+              />
+
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Student Name"
+                options={[]}
+                selectedValues={[]}
+                onApply={() => { }}
+                onSort={(dir) => onSort('student_name', dir)}
+                sortDir={sortBy === 'student_name' ? sortDir : null}
+                enableOptions={false}
+              />
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Date"
+                options={[]}
+                selectedValues={columnFilters.date || []}
+                onApply={(values) => onFilterChange('date', values)}
+                onSort={(dir) => onSort('date', dir)}
+                sortDir={sortBy === 'date' ? sortDir : null}
+                enableOptions={false}
+                isDate
+                rangeType="date"
+              />
+            </th>
+            {/* <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
                           <ColumnFilterMenu
                             label="Payment Type"
                             options={columnOptions.payment_type || []}
@@ -680,129 +680,129 @@ const AllPaymentsTable = ({
                             enableOptions={true}
                           />
                         </th> */}
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Installment"
-                            options={[]}
-                            selectedValues={columnFilters.installment || []}
-                            onApply={(values) => onFilterChange('installment', values)}
-                            onSort={(dir) => onSort('installment', dir)}
-                            sortDir={sortBy === 'installment' ? sortDir : null}
-                            enableOptions={false}
-                            rangeType="number"
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Amount"
-                            options={[]}
-                            selectedValues={columnFilters.amount || []}
-                            onApply={(values) => onFilterChange('amount', values)}
-                            onSort={(dir) => onSort('amount', dir)}
-                            sortDir={sortBy === 'amount' ? sortDir : null}
-                            enableOptions={false}
-                            rangeType="number"
-                          />
-                        </th>
-                        
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Purpose"
-                            options={columnOptions.purpose || []}
-                            selectedValues={columnFilters.purpose || []}
-                            onApply={(values) => onFilterChange('purpose', values)}
-                            onSort={(dir) => onSort('purpose', dir)}
-                            sortDir={sortBy === 'purpose' ? sortDir : null}
-                            enableOptions={true}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Received In"
-                            options={columnOptions.payment_recieved_in || []}
-                            selectedValues={columnFilters.payment_recieved_in || []}
-                            onApply={(values) => onFilterChange('payment_recieved_in', values)}
-                            onSort={(dir) => onSort('payment_recieved_in', dir)}
-                            sortDir={sortBy === 'payment_recieved_in' ? sortDir : null}
-                            enableOptions={true}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="Remarks"
-                            options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
-                            onSort={(dir) => onSort('remarks', dir)}
-                            sortDir={sortBy === 'remarks' ? sortDir : null}
-                            enableOptions={false}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="AK Approval"
-                            options={columnOptions.ak_approval || []}
-                            selectedValues={columnFilters.ak_approval || []}
-                            onApply={(values) => onFilterChange('ak_approval', values)}
-                            onSort={(dir) => onSort('ak_approval', dir)}
-                            sortDir={sortBy === 'ak_approval' ? sortDir : null}
-                            enableOptions={true}
-                          />
-                        </th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
-                          <ColumnFilterMenu
-                            label="AK Remarks"
-                            options={[]}
-                            selectedValues={[]}
-                            onApply={() => {}}
-                            onSort={(dir) => onSort('ak_remarks', dir)}
-                            sortDir={sortBy === 'ak_remarks' ? sortDir : null}
-                            enableOptions={false}
-                          />
-                        </th>
-                        {isAdmin && (
-                          <th className="p-3 text-sm font-semibold text-gray-custom-500 text-center">Actions</th>
-                        )}
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {payments.map(p => (
-                        <tr key={p.id}>
-                            <td className="p-3">
-                              <input
-                                type="checkbox"
-                                checked={selectedPaymentIds.has(p.id)}
-                                onChange={(e) => onSelectPayment(p.id, e.target.checked)}
-                                className="rounded ml-5 border-gray-custom-300"
-                              />
-                            </td>
-                            <StudentCell studentId={p.student_id} paymentId={p.id} />
-                            <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
-                            {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}
-                            <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
-                            <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
-                            
-                            <td className="p-3 text-gray-custom-600">{p.purpose || '-'}</td>
-                            <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
-                            <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
-                            {isAdmin && (
-                              <td className="p-3 text-center space-x-2">
-                                  <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} onClick={() => { try { localStorage.setItem('last-payment', JSON.stringify(p)); } catch {} }} className="inline-flex items-center justify-center px-2 py-1 text-sm font-medium text-primary hover:underline">
-                                      Edit
-                                  </Link>
-                                  <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center px-2 py-1 text-sm font-medium text-red-600 hover:underline">
-                                    <Trash size={14} className="mr-1" /> Delete
-                                  </button>
-                              </td>
-                            )}
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
-    );
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Installment"
+                options={[]}
+                selectedValues={columnFilters.installment || []}
+                onApply={(values) => onFilterChange('installment', values)}
+                onSort={(dir) => onSort('installment', dir)}
+                sortDir={sortBy === 'installment' ? sortDir : null}
+                enableOptions={false}
+                rangeType="number"
+              />
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Amount"
+                options={[]}
+                selectedValues={columnFilters.amount || []}
+                onApply={(values) => onFilterChange('amount', values)}
+                onSort={(dir) => onSort('amount', dir)}
+                sortDir={sortBy === 'amount' ? sortDir : null}
+                enableOptions={false}
+                rangeType="number"
+              />
+            </th>
+
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Purpose"
+                options={columnOptions.purpose || []}
+                selectedValues={columnFilters.purpose || []}
+                onApply={(values) => onFilterChange('purpose', values)}
+                onSort={(dir) => onSort('purpose', dir)}
+                sortDir={sortBy === 'purpose' ? sortDir : null}
+                enableOptions={true}
+              />
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Received In"
+                options={columnOptions.payment_recieved_in || []}
+                selectedValues={columnFilters.payment_recieved_in || []}
+                onApply={(values) => onFilterChange('payment_recieved_in', values)}
+                onSort={(dir) => onSort('payment_recieved_in', dir)}
+                sortDir={sortBy === 'payment_recieved_in' ? sortDir : null}
+                enableOptions={true}
+              />
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="Remarks"
+                options={[]}
+                selectedValues={[]}
+                onApply={() => { }}
+                onSort={(dir) => onSort('remarks', dir)}
+                sortDir={sortBy === 'remarks' ? sortDir : null}
+                enableOptions={false}
+              />
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="AK Approval"
+                options={columnOptions.ak_approval || []}
+                selectedValues={columnFilters.ak_approval || []}
+                onApply={(values) => onFilterChange('ak_approval', values)}
+                onSort={(dir) => onSort('ak_approval', dir)}
+                sortDir={sortBy === 'ak_approval' ? sortDir : null}
+                enableOptions={true}
+              />
+            </th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500 select-none">
+              <ColumnFilterMenu
+                label="AK Remarks"
+                options={[]}
+                selectedValues={[]}
+                onApply={() => { }}
+                onSort={(dir) => onSort('ak_remarks', dir)}
+                sortDir={sortBy === 'ak_remarks' ? sortDir : null}
+                enableOptions={false}
+              />
+            </th>
+            {isAdmin && (
+              <th className="p-3 text-sm font-semibold text-gray-custom-500 text-center">Actions</th>
+            )}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {payments.map(p => (
+            <tr key={p.id}>
+              <td className="p-3">
+                <input
+                  type="checkbox"
+                  checked={selectedPaymentIds.has(p.id)}
+                  onChange={(e) => onSelectPayment(p.id, e.target.checked)}
+                  className="rounded ml-5 border-gray-custom-300"
+                />
+              </td>
+              <StudentCell studentId={p.student_id} paymentId={p.id} />
+              <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
+              {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}
+              <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
+              <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
+
+              <td className="p-3 text-gray-custom-600">{p.purpose || '-'}</td>
+              <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
+              <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
+              <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
+              <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
+              {isAdmin && (
+                <td className="p-3 text-center space-x-2">
+                  <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} onClick={() => { try { localStorage.setItem('last-payment', JSON.stringify(p)); } catch { } }} className="inline-flex items-center justify-center px-2 py-1 text-sm font-medium text-primary hover:underline">
+                    Edit
+                  </Link>
+                  <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center px-2 py-1 text-sm font-medium text-red-600 hover:underline">
+                    <Trash size={14} className="mr-1" /> Delete
+                  </button>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 // Deprecated specialized tables removed in favor of AllPaymentsTable for consistency across tabs
