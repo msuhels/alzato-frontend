@@ -46,6 +46,7 @@ export const studentsService = {
     column_filters?: Record<string, string[]>;
     name?: string; email?: string; phone?: string; category?: string; zone?: string; source_of_student?: string;
     intake_year_from?: string; intake_year_to?: string; created_from?: string; created_to?: string; q?: string;
+    ids?: (string | number)[]; // filter by specific student IDs
   } = {}): Promise<PaginatedResponse<StudentListItem>> {
     const { column_filters, ...rest } = params || {};
     const { data } = await axios.get<PaginatedResponse<StudentListItem>>(`${API_BASE_URL}/students`, {
