@@ -103,6 +103,25 @@ export const paymentsService = {
     return data;
   },
 
+  // XLSX Import (admin)
+  async importXlsx(buffer: ArrayBuffer): Promise<{ inserted: number; failed: number; errors?: Array<{ rowNumber: number; message: string }> }> {
+    // Convert ArrayBuffer to base64 string properly
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+
+    const { data } = await axios.post(
+      `${API_BASE_URL}/payments/import-xlsx`,
+      { xlsx: base64 },
+      { headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' } }
+    );
+    return data;
+  },
+
   async exportCsv(params: { student_id?: number | string; created_from?: string; created_to?: string } = {}): Promise<Blob> {
     const response = await axios.get(`${API_BASE_URL}/payments/export-csv`, {
       params,
