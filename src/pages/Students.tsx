@@ -90,8 +90,17 @@ const StudentsPage = () => {
     setImportResult(null);
     setImportError(null);
     try {
-      const text = await file.text();
-      const res = await paymentsService.importCsv(text);
+      const isExcel = file.name.match(/\.(xlsx|xls)$/i);
+      let res;
+      if (isExcel) {
+        // Read as ArrayBuffer for Excel files
+        const buffer = await file.arrayBuffer();
+        res = await paymentsService.importXlsx(buffer);
+      } else {
+        // Read as text for CSV files
+        const text = await file.text();
+        res = await paymentsService.importCsv(text);
+      }
       setImportResult(res);
       await fetchStudents();
     } catch (e: any) {
@@ -301,7 +310,7 @@ const StudentsPage = () => {
           grouped[instNum].push(payment);
         }
       });
-      
+
       // Process each installment group
       [1, 2, 3, 4].forEach((instNum) => {
         const payments = grouped[instNum] || [];
@@ -715,8 +724,8 @@ const StudentsPage = () => {
                 <button onClick={handleDownloadSample} className="rounded-lg border px-3 py-2 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50">Sample CSV</button>
               )}
               <button onClick={handleExportCsv} disabled={exporting} className="rounded-lg border px-3 py-2 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50 disabled:opacity-50">{exporting ? 'Exporting…' : 'Export CSV'}</button>
-              <button onClick={() => setShowImportDialog(true)} disabled={importing} className="rounded-lg border px-3 py-2 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50 disabled:opacity-50">{importing ? 'Importing…' : 'Import CSV'}</button>
-              <input id={fileInputId} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { e.currentTarget.value = ''; handleImportCsv(f); } }} />
+              <button onClick={() => setShowImportDialog(true)} disabled={importing} className="rounded-lg border px-3 py-2 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50 disabled:opacity-50">{importing ? 'Importing…' : 'Import Excel'}</button>
+              <input id={fileInputId} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { e.currentTarget.value = ''; handleImportCsv(f); } }} />
             </>
           )}
           <Link to="/students/new">
@@ -1556,7 +1565,7 @@ const StudentsPage = () => {
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowImportDialog(false)} />
             <div className="relative z-10 w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
               <div className="mb-4">
-                <h2 className="text-xl font-bold text-gray-custom-900">Import Payments CSV</h2>
+                <h2 className="text-xl font-bold text-gray-custom-900">Import Payments excel</h2>
                 <p className="mt-1 text-sm text-gray-custom-500">Please read these instructions carefully before importing.</p>
               </div>
               <div className="rounded-lg border bg-gray-custom-50 p-4">
@@ -1603,7 +1612,7 @@ const StudentsPage = () => {
               )}
               <div className="mt-6 flex items-center justify-end gap-3">
                 <button onClick={() => { setShowImportDialog(false); setImportResult(null); setImportError(null); }} className="rounded-lg border px-4 py-2 text-sm font-semibold text-gray-custom-700 hover:bg-gray-custom-50">{importing ? 'Hide' : (importResult || importError) ? 'Done' : 'Cancel'}</button>
-                <button onClick={() => { triggerImportFile(); }} disabled={importing} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50">Choose CSV & Import</button>
+                <button onClick={() => { triggerImportFile(); }} disabled={importing} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50">Choose Excel & Import</button>
               </div>
             </div>
           </div>
