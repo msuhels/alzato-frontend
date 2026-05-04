@@ -1,12 +1,35 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import AlzatLogo from '../components/AlzatLogo';
+import { authService } from '../services/auth';
 
 const ForgotPasswordPage = () => {
-  const handleReset = (e: React.FormEvent) => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Logic to handle password reset email would go here
-    alert('If an account with that email exists, a password reset link has been sent.');
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      const result = await authService.forgotPassword(email);
+      if (result.success) {
+        setMessage('Code sent! Check your email and enter the code below.');
+        // Redirect to reset password page with email
+        setTimeout(() => {
+          navigate(`/reset-password?email=${encodeURIComponent(email)}`);
+        }, 1500);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to send reset email. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -21,6 +44,19 @@ const ForgotPasswordPage = () => {
             Enter your email and we'll send you a reset link.
           </p>
         </div>
+
+        {message && (
+          <div className="rounded-md bg-green-50 p-4 text-green-800 text-sm">
+            {message}
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-md bg-red-50 p-4 text-red-800 text-sm">
+            {error}
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleReset}>
           <div>
             <label htmlFor="email-address" className="sr-only">Email address</label>
@@ -30,6 +66,8 @@ const ForgotPasswordPage = () => {
               type="email"
               autoComplete="email"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="relative block w-full appearance-none rounded-md border border-gray-custom-300 px-3 py-2 text-gray-custom-900 placeholder-gray-custom-500 focus:z-10 focus:border-primary focus:outline-none focus:ring-primary sm:text-sm"
               placeholder="Enter your email address"
             />
@@ -38,9 +76,10 @@ const ForgotPasswordPage = () => {
           <div>
             <button
               type="submit"
-              className="group relative flex w-full justify-center rounded-md border border-transparent bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              disabled={loading}
+              className="group relative flex w-full justify-center rounded-md border border-transparent bg-primary py-2 px-4 text-sm font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
             >
-              Send Reset Link
+              {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
           </div>
         </form>

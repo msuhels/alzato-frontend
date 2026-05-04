@@ -71,6 +71,26 @@ export const authService = {
     });
     return authService._normalizeUserProfile(data);
   },
+
+  async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
+    const { data } = await axios.post<{ success: boolean; message: string }>(
+      `${API_BASE_URL}/auth/reset-password`,
+      { email },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    return data;
+  },
+
+  // Verify reset code and set new password
+  async verifyResetCode(email: string, code: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+    const { data } = await axios.post<{ success: boolean; message: string }>(
+      `${API_BASE_URL}/auth/verify-reset-code`,
+      { email, code, newPassword },
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+    return data;
+  },
+
 };
 
 
