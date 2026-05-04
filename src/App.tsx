@@ -8,6 +8,7 @@ import StudentsPage from './pages/Students';
 import DashboardPage from './pages/Dashboard';
 import PaymentsPage from './pages/Payments';
 import ForgotPasswordPage from './pages/ForgotPassword';
+import ResetPasswordWithCode from './pages/ResetPasswordWithCode';
 import AddStudentPage from './pages/AddStudent';
 import EditStudentPage from './pages/EditStudent';
 import StudentDetailsPage from './pages/StudentDetails';
@@ -20,6 +21,7 @@ function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordWithCode />} />
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<DashboardLayout />}>
           <Route index element={<HomeRedirect />} />
