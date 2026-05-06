@@ -103,7 +103,7 @@ export const parseInstallmentStructure = (installmentsStr: string | undefined): 
     return Number.isNaN(num) ? 0 : num;
   });
   // Return as-is (no conversion)
-  return parts.filter(p => p > 0).map(p => p);
+  return parts.map(p => p);
 };
 
 /**
