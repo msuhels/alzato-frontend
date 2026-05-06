@@ -266,7 +266,7 @@ const StudentDetailsPage = () => {
               if (!studentId) return;
               setSaving(true);
               try {
-                await studentsService.update(studentId, {
+                const { student: updatedStudent } = await studentsService.update(studentId, {
                   name: values.name,
                   email: values.email || undefined,
                   phone: values.phone || undefined,
@@ -281,7 +281,10 @@ const StudentDetailsPage = () => {
                 setZone(values.zone || '');
                 setIntakeYear(values.intakeYear || '');
                 setAssociateWiseInstallments(values.associateWiseInstallments || '');
-                setTotalAmount(values.totalAmount || 0);
+                // Use values returned from backend (which has correct total, received and net amounts)
+                setTotalAmount(Number(updatedStudent?.total_amount || 0));
+                setReceivedAmount(Number(updatedStudent?.recieved_amount || updatedStudent?.received_amount || 0));
+                setNetAmount(Number(updatedStudent?.net_amount || 0));
                 setShowEdit(false);
               } finally {
                 setSaving(false);
