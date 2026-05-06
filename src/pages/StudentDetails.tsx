@@ -16,7 +16,7 @@ const Avatar = ({ name, size = 'lg' }: { name: string; size?: 'lg' | 'sm' }) => 
   const color = avatarColors[code % avatarColors.length];
   const sizeClasses = size === 'lg' ? 'h-24 w-24 text-4xl' : 'h-10 w-10';
   const avatarFallback = name.split(' ').slice(0, 2).map(s => s[0]).join('').toUpperCase();
-  
+
   return (
     <div className={`flex items-center justify-center rounded-full font-bold text-white ${color} ${sizeClasses}`}>
       {avatarFallback}
@@ -87,8 +87,8 @@ const StudentDetailsPage = () => {
         setReceivedAmount(Number(receivedRaw));
         const netRaw = (student?.net_amount ?? 0);
         setNetAmount(Number(netRaw));
-      } catch {}
-    } catch {}
+      } catch { }
+    } catch { }
   };
 
   useEffect(() => {
@@ -117,7 +117,7 @@ const StudentDetailsPage = () => {
         if (stateHighlight) {
           setHighlightedPaymentId(stateHighlight);
         }
-      } catch {}
+      } catch { }
     }
     load();
   }, [studentId]);
@@ -259,8 +259,8 @@ const StudentDetailsPage = () => {
           onCancel={() => { if (!deleting) setConfirmOpen(false); }}
         />
         {showEdit && (
-            <EditStudentModal
-            initial={{ name: studentName, email: '', phone: '', category, zone, intakeYear, associateWiseInstallments }}
+          <EditStudentModal
+            initial={{ name: studentName, email: '', phone: '', category, zone, intakeYear, associateWiseInstallments, totalAmount: totalAmount }}
             onClose={() => setShowEdit(false)}
             onSave={async (values) => {
               if (!studentId) return;
@@ -274,12 +274,14 @@ const StudentDetailsPage = () => {
                   zone: values.zone || undefined,
                   intake_year: values.intakeYear || undefined,
                   associate_wise_installments: values.associateWiseInstallments || undefined,
+                  total_amount: values.totalAmount,
                 });
                 setStudentName(values.name);
                 setCategory(values.category || '');
                 setZone(values.zone || '');
                 setIntakeYear(values.intakeYear || '');
                 setAssociateWiseInstallments(values.associateWiseInstallments || '');
+                setTotalAmount(values.totalAmount || 0);
                 setShowEdit(false);
               } finally {
                 setSaving(false);
@@ -294,12 +296,12 @@ const StudentDetailsPage = () => {
       <div className="rounded-lg bg-white p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <h2 className="text-xl font-bold text-gray-custom-900 mb-4 md:mb-0">Payment History</h2>
-              <button onClick={() => navigate(`/students/${studentId}/payments/new`)} className="flex items-center justify-center gap-2 rounded-lg bg-primary py-2 px-4 text-white font-semibold hover:bg-primary-dark transition-colors">
+          <button onClick={() => navigate(`/students/${studentId}/payments/new`)} className="flex items-center justify-center gap-2 rounded-lg bg-primary py-2 px-4 text-white font-semibold hover:bg-primary-dark transition-colors">
             <Plus size={20} />
             <span>Add Payment</span>
           </button>
         </div>
-        
+
         <div>
           {/* Tabs hidden per request; showing all payments only */}
           {/* <div className="border-b border-gray-200">
@@ -319,7 +321,7 @@ const StudentDetailsPage = () => {
               ))}
             </nav>
           </div> */}
-          
+
           <div className="mt-6">
             {payments.length === 0 && <p className="text-center text-gray-500 py-8">No payment records found for this student.</p>}
             {payments.length > 0 && (
@@ -377,183 +379,183 @@ const AllPaymentsTable = ({
   canEditRemark?: boolean;
   onSaveRemark?: (id: string | number, remarks: string) => Promise<void>;
 }) => {
-    const [editingId, setEditingId] = useState<string | number | null>(null);
-    const [editValue, setEditValue] = useState('');
-    const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [saving, setSaving] = useState(false);
 
-    const handleEdit = (p: PaymentListItem) => {
-      setEditingId(p.id);
-      setEditValue(p.remarks || '');
-    };
+  const handleEdit = (p: PaymentListItem) => {
+    setEditingId(p.id);
+    setEditValue(p.remarks || '');
+  };
 
-    const handleCancel = () => {
+  const handleCancel = () => {
+    setEditingId(null);
+    setEditValue('');
+  };
+
+  const handleSave = async (id: string | number) => {
+    if (!onSaveRemark) return;
+    setSaving(true);
+    try {
+      await onSaveRemark(id, editValue);
       setEditingId(null);
-      setEditValue('');
-    };
+    } finally {
+      setSaving(false);
+    }
+  };
 
-    const handleSave = async (id: string | number) => {
-      if (!onSaveRemark) return;
-      setSaving(true);
-      try {
-        await onSaveRemark(id, editValue);
-        setEditingId(null);
-      } finally {
-        setSaving(false);
-      }
-    };
+  const showActionsCol = isAdmin || canEditRemark;
 
-    const showActionsCol = isAdmin || canEditRemark;
-
-    return (
-        <div className="overflow-x-auto border rounded-lg">
-            <table className="w-full min-w-[1300px] text-left">
-                <thead className="bg-gray-custom-50">
-                    <tr className="border-b border-gray-custom-200">
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Date</th>
-                        {/* <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th> */}
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
-                        <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
-                        {showActionsCol && (
-                          <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
-                        )}
-                    </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                    {payments.map(p => {
-                      const isEditing = editingId === p.id;
-                      const remarkAlreadyEdited = (p as any).remark_edited === true;
-                      return (
-                        <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
-                            <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
-                            {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}
-                            <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
-                            <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
-                            <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
-                            <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                            <td className="p-3 text-gray-custom-600">
-                              {isEditing ? (
-                                <input
-                                  autoFocus
-                                  value={editValue}
-                                  onChange={e => setEditValue(e.target.value)}
-                                  className="w-full rounded border border-primary px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                                />
-                              ) : (
-                                <RemarksTooltip remarks={p.remarks} />
-                              )}
-                            </td>
-                            <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
-                            <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
-                            {showActionsCol && (
-                              <td className="p-3 text-center">
-                                {isAdmin ? (
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors">
-                                        <Pencil size={16} />
-                                    </Link>
-                                    <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50">
-                                      <Trash2 size={16} />
-                                    </button>
-                                  </div>
-                                ) : canEditRemark ? (
-                                  isEditing ? (
-                                    <div className="flex items-center justify-center gap-1">
-                                      <button
-                                        onClick={() => handleSave(p.id)}
-                                        disabled={saving}
-                                        className="inline-flex items-center justify-center p-1.5 rounded-md text-black bg-primary hover:bg-primary-dark disabled:opacity-50 transition-colors"
-                                        title="Save"
-                                      >
-                                        <Check size={16} />
-                                      </button>
-                                      <button
-                                        onClick={handleCancel}
-                                        disabled={saving}
-                                        className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-600 hover:bg-gray-custom-100 disabled:opacity-50 transition-colors"
-                                        title="Cancel"
-                                      >
-                                        <X size={16} />
-                                      </button>
-                                    </div>
-                                  ) : !remarkAlreadyEdited ? (
-                                    <button
-                                      onClick={() => handleEdit(p)}
-                                      className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors"
-                                      title="Edit remark"
-                                    >
-                                      <Pencil size={16} />
-                                    </button>
-                                  ) : (
-                                    <span className="text-xs text-gray-custom-400">Edited</span>
-                                  )
-                                ) : null}
-                              </td>
-                            )}
-                        </tr>
-                      );
-                    })}
-                </tbody>
-            </table>
-        </div>
-    );
+  return (
+    <div className="overflow-x-auto border rounded-lg">
+      <table className="w-full min-w-[1300px] text-left">
+        <thead className="bg-gray-custom-50">
+          <tr className="border-b border-gray-custom-200">
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">Date</th>
+            {/* <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th> */}
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment</th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
+            <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
+            {showActionsCol && (
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
+            )}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {payments.map(p => {
+            const isEditing = editingId === p.id;
+            const remarkAlreadyEdited = (p as any).remark_edited === true;
+            return (
+              <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
+                <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
+                {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'}</td> */}
+                <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
+                <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
+                <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
+                <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
+                <td className="p-3 text-gray-custom-600">
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      className="w-full rounded border border-primary px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  ) : (
+                    <RemarksTooltip remarks={p.remarks} />
+                  )}
+                </td>
+                <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
+                <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
+                {showActionsCol && (
+                  <td className="p-3 text-center">
+                    {isAdmin ? (
+                      <div className="flex items-center justify-center gap-1">
+                        <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors">
+                          <Pencil size={16} />
+                        </Link>
+                        <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ) : canEditRemark ? (
+                      isEditing ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleSave(p.id)}
+                            disabled={saving}
+                            className="inline-flex items-center justify-center p-1.5 rounded-md text-black bg-primary hover:bg-primary-dark disabled:opacity-50 transition-colors"
+                            title="Save"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            onClick={handleCancel}
+                            disabled={saving}
+                            className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-600 hover:bg-gray-custom-100 disabled:opacity-50 transition-colors"
+                            title="Cancel"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : !remarkAlreadyEdited ? (
+                        <button
+                          onClick={() => handleEdit(p)}
+                          className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors"
+                          title="Edit remark"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      ) : (
+                        <span className="text-xs text-gray-custom-400">Edited</span>
+                      )
+                    ) : null}
+                  </td>
+                )}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 // Removed specialized InstallmentTable; using SharedPaymentsTable for all non-ALL tabs for consistent columns
 
 export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, onDelete }: { payments: PaymentListItem[]; highlightedPaymentId?: string | number | null; isAdmin: boolean; onDelete: (id: string | number) => void }) => {
-    return (
-        <div>
-            <div className="overflow-x-auto border rounded-lg">
-                <table className="w-full min-w-[1400px] text-left">
-                    <thead className="bg-gray-custom-50">
-                        <tr className="border-b border-gray-custom-200">
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Date</th>
-                            {/* <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th> */}
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
-                            <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
-                           
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                        {payments.map(p => (
-                            <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
-                                <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
-                                {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'} </td> */}
-                                <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
-                                <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
-                                <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
-                                <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
-                                <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
-                                <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
-                                <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
-                                {isAdmin && (
-                                  <td className="p-3 text-center space-x-2">
-                                      <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors">
-                                          <Pencil size={16} />
-                                      </Link>
-                                      <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50">
-                                        <Trash2 size={16} />
-                                      </button>
-                                  </td>
-                                )}                       
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
+  return (
+    <div>
+      <div className="overflow-x-auto border rounded-lg">
+        <table className="w-full min-w-[1400px] text-left">
+          <thead className="bg-gray-custom-50">
+            <tr className="border-b border-gray-custom-200">
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Date</th>
+              {/* <th className="p-3 text-sm font-semibold text-gray-custom-500">Payment Type</th> */}
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Installment</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Purpose</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Amount</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Received In</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Remarks</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Approval</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">AK's Remarks</th>
+              <th className="p-3 text-sm font-semibold text-gray-custom-500">Actions</th>
+
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {payments.map(p => (
+              <tr key={p.id} id={`payment-${p.id}`} className={highlightedPaymentId === p.id ? 'bg-primary/10 ring-2 ring-primary' : undefined}>
+                <td className="p-3 text-gray-custom-600">{formatDate(p.installment_date)}</td>
+                {/* <td className="p-3 text-gray-custom-600">{p.payment_type || '-'} </td> */}
+                <td className="p-3 text-gray-custom-600 font-medium">#{p.installment_number}</td>
+                <td className="p-3 text-gray-custom-800">{p.purpose || '-'}</td>
+                <td className="p-3 text-gray-custom-800 font-medium">{formatINR(p.amount)}</td>
+                <td className="p-3 text-gray-custom-600">{p.payment_recieved_in}</td>
+                <td className="p-3 text-center"><RemarksTooltip remarks={p.remarks} /></td>
+                <td className="p-3">{p.ak_approval ? <ApprovalStatusBadge status={p.ak_approval as AkApprovalStatus} /> : <span className="text-gray-custom-400">-</span>}</td>
+                <td className="p-3 text-center"><RemarksTooltip remarks={p.ak_remarks} /></td>
+                {isAdmin && (
+                  <td className="p-3 text-center space-x-2">
+                    <Link to={`/students/${p.student_id}/payments/${p.id}/edit`} state={{ payment: p }} className="inline-flex items-center justify-center p-1.5 rounded-md text-gray-custom-500 hover:text-primary hover:bg-gray-custom-100 transition-colors">
+                      <Pencil size={16} />
+                    </Link>
+                    <button onClick={() => onDelete(p.id)} className="inline-flex items-center justify-center p-1.5 rounded-md text-red-600 hover:bg-red-50">
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
 
 // Legacy aliases no longer used
@@ -562,10 +564,24 @@ export const SharedPaymentsTable = ({ payments, highlightedPaymentId, isAdmin, o
 
 export default StudentDetailsPage;
 
-type EditValues = { name: string; email?: string; phone?: string; category?: string; zone?: string; intakeYear?: string; associateWiseInstallments?: string };
+type EditValues = { name: string; email?: string; phone?: string; category?: string; zone?: string; intakeYear?: string; associateWiseInstallments?: string; totalAmount?: number };
 
 const EditStudentModal = ({ initial, onClose, onSave, saving }: { initial: EditValues; onClose: () => void; onSave: (values: EditValues) => Promise<void>; saving: boolean }) => {
   const [values, setValues] = useState<EditValues>(initial);
+
+  // Calculate total amount from installments
+  const calculateTotalAmount = (installments: string): number => {
+    if (!installments) return 0;
+    const parts = installments.split('-').map(part => Number(part));
+    const validParts = parts.filter(part => !Number.isNaN(part));
+    return validParts.reduce((acc, curr) => acc + curr, 0);
+  };
+
+  const handlePackageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newInstallments = e.target.value;
+    const calculatedTotal = calculateTotalAmount(newInstallments);
+    setValues({ ...values, associateWiseInstallments: newInstallments, totalAmount: calculatedTotal });
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl">
@@ -609,17 +625,13 @@ const EditStudentModal = ({ initial, onClose, onSave, saving }: { initial: EditV
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-custom-700">Package</label>
-            <select value={values.associateWiseInstallments || ''} onChange={(e) => setValues({ ...values, associateWiseInstallments: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none">
+            <select value={values.associateWiseInstallments || ''} onChange={handlePackageChange} className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none">
               <option value="">Select</option>
               {ASSOCIATE_WISE_INSTALLMENTS.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-custom-700">Package</label>
-            <select value={values.associateWiseInstallments || ''} onChange={(e) => setValues({ ...values, associateWiseInstallments: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none">
-              <option value="">Select</option>
-              {ASSOCIATE_WISE_INSTALLMENTS.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
+            {values.totalAmount !== undefined && values.totalAmount > 0 && (
+              <p className="mt-1 text-xs text-gray-custom-500">Calculated Total: {values.totalAmount}</p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-custom-700">Intake Year</label>

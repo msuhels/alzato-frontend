@@ -18,6 +18,7 @@ export const PAYMENT_DEPARTMENTS = [
 ] as const;
 
 export const ASSOCIATE_WISE_INSTALLMENTS = [
+  '0-40-45',
   '10-0-15',
   '10-15-35-30',
   '10-20-20-30',
