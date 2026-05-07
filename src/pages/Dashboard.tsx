@@ -75,7 +75,7 @@ const DashboardPage = () => {
 
   // ✅ 4. Total students
   const totalStudents = useMemo(
-    () => studentsThisPeriod.length,
+    () => studentsThisPeriod.length +1,
     [studentsThisPeriod],
   );
 
