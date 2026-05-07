@@ -166,13 +166,10 @@ export const paymentsService = {
     return data;
   },
 
-  async getUnreadCount(last24Hours: boolean = false): Promise<{ success: boolean; total: number }> {
+  async getUnreadCount(): Promise<{ success: boolean; total: number }> {
     const { data } = await axios.get<{ success: boolean; total: number }>(
       `${API_BASE_URL}/payments/unread-count`,
-      {
-        params: { last_24_hours: last24Hours },
-        headers: { ...getAuthHeaders() }
-      }
+      { headers: { ...getAuthHeaders() } }
     );
     return data;
   },
