@@ -72,6 +72,8 @@ const StudentDetailsPage = () => {
   const [totalAmount, setTotalAmount] = useState<number>(0);
   const [receivedAmount, setReceivedAmount] = useState<number>(0);
   const [netAmount, setNetAmount] = useState<number>(0);
+  const [email, setEmail] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
 
   const loadedRef = useRef(false);
   const fetchPaymentsForStudent = async () => {
@@ -102,6 +104,8 @@ const StudentDetailsPage = () => {
           paymentsService.list({ limit: 100, offset: 0, student_id: studentId }),
         ]);
         setStudentName(student?.name || '');
+        setEmail(student?.email || '');
+        setPhone(student?.phone || '');
         setCategory(student?.category || '');
         setZone(student?.zone || '');
         setIntakeYear(student?.intake_year || '');
@@ -260,7 +264,7 @@ const StudentDetailsPage = () => {
         />
         {showEdit && (
           <EditStudentModal
-            initial={{ name: studentName, email: '', phone: '', category, zone, intakeYear, associateWiseInstallments, totalAmount: totalAmount }}
+           initial={{ name: studentName, email: email || '', phone: phone || '', category, zone, intakeYear, associateWiseInstallments, totalAmount: totalAmount }}
             onClose={() => setShowEdit(false)}
             onSave={async (values) => {
               if (!studentId) return;
@@ -636,10 +640,19 @@ const EditStudentModal = ({ initial, onClose, onSave, saving }: { initial: EditV
               <p className="mt-1 text-xs text-gray-custom-500">Calculated Total: {values.totalAmount}</p>
             )}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-custom-700">Intake Year</label>
-            <input type="date" value={values.intakeYear || ''} onChange={(e) => setValues({ ...values, intakeYear: e.target.value })} className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none" />
-          </div>
+         <div>
+  <label className="block text-sm font-medium text-gray-custom-700">Intake Year</label>
+  <select
+    value={values.intakeYear ? new Date(values.intakeYear).getFullYear().toString() : ''}
+    onChange={(e) => setValues({ ...values, intakeYear: e.target.value ? `${e.target.value}-01-01` : '' })}
+    className="mt-1 w-full rounded-md border px-3 py-2 focus:border-primary focus:outline-none"
+  >
+    <option value="">Select</option>
+    {[2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030].map(year => (
+      <option key={year} value={year}>{year}</option>
+    ))}
+  </select>
+</div>
           <div className="mt-4 flex items-center justify-end gap-3">
             <button type="button" onClick={onClose} className="text-sm font-medium text-gray-custom-700 hover:underline">Cancel</button>
             <button type="submit" disabled={saving} className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-50">{saving ? 'Saving…' : 'Save'}</button>
