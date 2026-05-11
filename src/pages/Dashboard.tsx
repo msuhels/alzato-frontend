@@ -53,13 +53,15 @@ const DashboardPage = () => {
 
   // ✅ 1. Filter students by intake year
   const studentsThisPeriod = useMemo(() => {
-    return students.filter((s) => {
-      if (!s.intake_year) return false;
-
-      // ✅ FIX: intake_year is already a number
-      return Number(s.intake_year) === selectedYear;
-    });
-  }, [students, selectedYear]);
+  return students.filter((s) => {
+    if (!s.intake_year) return false;
+    // Handle both number (2025) and string ("2025" or "2025-01-01") formats
+    const yearValue = typeof s.intake_year === 'string' 
+      ? s.intake_year.split('-')[0]  // Take first part before "-"
+      : String(s.intake_year);
+    return Number(yearValue) === selectedYear;
+  });
+}, [students, selectedYear]);
 
   // ✅ 2. Extract student IDs
   const studentIdsThisPeriod = useMemo(() => {
@@ -125,10 +127,14 @@ const DashboardPage = () => {
     const studentYearMap = new Map<string, number>();
 
     students.forEach((s) => {
-      if (s.intake_year) {
-        studentYearMap.set(String(s.id), Number(s.intake_year));
-      }
-    });
+  if (s.intake_year) {
+    // Handle both number and string formats (2025, "2025", "2025-01-01")
+    const yearStr = typeof s.intake_year === 'string' 
+      ? s.intake_year.split('-')[0] 
+      : String(s.intake_year);
+    studentYearMap.set(String(s.id), Number(yearStr));
+  }
+});
 
     // ✅ Step 2: Initialize revenue map
     const revenueMap = new Map<number, number>();
