@@ -14,6 +14,7 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
   const { logout, user } = useAuth();
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
   console.log('Sidebar rendered with user:');
+  /* [COMMENTED OUT - ORIGINAL FUNCTIONALITY - START]
   useEffect(() => {
     let isMounted = true;
 
@@ -33,6 +34,44 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
 
     fetchUnread();
     const handleActivityUpdate = () => fetchUnread();
+    window.addEventListener('activityLog:updated', handleActivityUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('activityLog:updated', handleActivityUpdate);
+    };
+  }, [user]);
+  [COMMENTED OUT - ORIGINAL FUNCTIONALITY - END] */
+
+  // [NEW FUNCTIONALITY] - Fetch count of payments from last 24 hours
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLast24HoursCount = async () => {
+      if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
+        if (isMounted) setUnreadCount(null);
+        return;
+      }
+      try {
+        // Calculate date 24 hours ago
+        const now = new Date();
+        const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        const createdFrom = twentyFourHoursAgo.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+
+        const res = await paymentsService.list({
+          limit: 100,
+          offset: 0,
+          created_from: createdFrom
+        });
+        if (isMounted) setUnreadCount(res.items?.length ?? 0);
+      } catch (error) {
+        // Swallow errors; badge is non-critical UI
+        if (isMounted) setUnreadCount(0);
+      }
+    };
+
+    fetchLast24HoursCount();
+    const handleActivityUpdate = () => fetchLast24HoursCount();
     window.addEventListener('activityLog:updated', handleActivityUpdate);
 
     return () => {
@@ -67,10 +106,9 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
               <NavLink
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${
-                    isActive
-                      ? 'bg-primary-light text-primary'
-                      : 'text-gray-custom-500 hover:bg-gray-custom-100'
+                  `flex items-center gap-3 rounded-lg px-4 py-3 font-medium transition-colors ${isActive
+                    ? 'bg-primary-light text-primary'
+                    : 'text-gray-custom-500 hover:bg-gray-custom-100'
                   }`
                 }
                 onClick={onClose}
@@ -123,9 +161,8 @@ const Sidebar = ({ isOpen = false, onClose }: SidebarProps) => {
         />
         {/* Panel */}
         <div
-          className={`absolute left-0 top-0 h-full transform transition-transform ${
-            isOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={`absolute left-0 top-0 h-full transform transition-transform ${isOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
         >
           {content}
         </div>
